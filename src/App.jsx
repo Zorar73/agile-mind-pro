@@ -1,23 +1,32 @@
-import React, { useState, useEffect, createContext } from 'react';
+import React, { useState, useEffect, createContext, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
-import { CssBaseline, Box, CircularProgress } from '@mui/material';
-import theme from './theme';
+import { Box, CircularProgress } from '@mui/material';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { DrawerStackProvider } from './contexts/DrawerStackContext';
+import NotificationProvider from './contexts/NotificationProvider';
+import EntityDrawerManager from './components/Common/EntityDrawerManager';
 import authService from './services/auth.service';
 
-// Pages
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import BoardPage from './pages/BoardPage';
-import CalendarPage from './pages/CalendarPage';
-import MyTasksPage from './pages/MyTasksPage';
-import TeamPage from './pages/TeamPage';
-import SketchesPage from './pages/SketchesPage';
-import UsersPage from './pages/UsersPage';
-import SettingsPage from './pages/SettingsPage';
-import ProfilePage from './pages/ProfilePage';
-import PendingApprovalPage from './pages/PendingApprovalPage';
+// Lazy-loaded Pages
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const BoardsPage = lazy(() => import('./pages/BoardsPage'));
+const BoardPage = lazy(() => import('./pages/BoardPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const MyTasksPage = lazy(() => import('./pages/MyTasksPage'));
+const TeamPage = lazy(() => import('./pages/TeamPage'));
+const SketchesPage = lazy(() => import('./pages/SketchesPage'));
+const NewsPage = lazy(() => import('./pages/NewsPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const BacklogPage = lazy(() => import('./pages/BacklogPage'));
+const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage'));
+const CloudinaryTestPage = lazy(() => import('./pages/CloudinaryTestPage'));
+const SprintPlanning = lazy(() => import('./components/Sprint/SprintPlanning'));
 
 const UserContext = createContext();
 
@@ -57,27 +66,59 @@ function App() {
   }, []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <UserContext.Provider value={{ user, setUser, loading }}>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/pending" element={<PendingApprovalPage />} />
-            
-            <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-            <Route path="/board/:boardId" element={<ProtectedRoute><BoardPage /></ProtectedRoute>} />
-            <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-            <Route path="/my-tasks" element={<ProtectedRoute><MyTasksPage /></ProtectedRoute>} />
-            <Route path="/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
-            <Route path="/sketches" element={<ProtectedRoute><SketchesPage /></ProtectedRoute>} />
-            <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          </Routes>
-        </Router>
-      </UserContext.Provider>
+    <ThemeProvider>
+      <ToastProvider>
+        <DrawerStackProvider>
+          <UserContext.Provider value={{ user, setUser, loading }}>
+            <Router>
+              <NotificationProvider>
+                <Suspense fallback={
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                    <CircularProgress />
+                  </Box>
+                }>
+                  <Routes>
+              {/* Публичные роуты */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/pending" element={<PendingApprovalPage />} />
+
+              {/* Главная страница - Dashboard */}
+              <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+
+              {/* Страница досок - отдельная страница со списком всех досок */}
+              <Route path="/boards" element={<ProtectedRoute><BoardsPage /></ProtectedRoute>} />
+
+              {/* Конкретная доска */}
+              <Route path="/board/:boardId" element={<ProtectedRoute><BoardPage /></ProtectedRoute>} />
+
+              {/* Бэклог доски */}
+              <Route path="/board/:boardId/backlog" element={<ProtectedRoute><BacklogPage /></ProtectedRoute>} />
+
+              {/* Спринты доски */}
+              <Route path="/board/:boardId/sprints" element={<ProtectedRoute><SprintPlanning /></ProtectedRoute>} />
+
+              {/* Остальные роуты */}
+              <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+              <Route path="/my-tasks" element={<ProtectedRoute><MyTasksPage /></ProtectedRoute>} />
+              <Route path="/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+              <Route path="/team/:teamId" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+              <Route path="/team/:teamId/chat" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+              <Route path="/sketches" element={<ProtectedRoute><SketchesPage /></ProtectedRoute>} />
+              <Route path="/news" element={<ProtectedRoute><NewsPage /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+              <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/cloudinary-test" element={<ProtectedRoute><CloudinaryTestPage /></ProtectedRoute>} />
+                  </Routes>
+                </Suspense>
+                <EntityDrawerManager />
+              </NotificationProvider>
+            </Router>
+        </UserContext.Provider>
+        </DrawerStackProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

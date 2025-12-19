@@ -1,3 +1,4 @@
+// src/services/team.service.js
 import {
   collection,
   doc,
@@ -10,92 +11,94 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
-  increment,
-  deleteField,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import notificationService from './notification.service';
 
 class TeamService {
-  async createTeam(teamData, userId) {
+  // =====================
+  // КОМАНДЫ
+  // =====================
+
+  async createTeam(name, description, leaderId) {
     try {
-      console.log('🔵 [TeamService] Creating team:', teamData, 'for user:', userId);
-      
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.data();
-      
-      console.log('🔵 [TeamService] User data:', userData);
-      
-      if ((userData.teamsCount || 0) >= (userData.teamLimit || 10)) {
-        console.error('🔴 [TeamService] Team limit reached');
+      // Проверяем лимит команд для пользователя
+      const userTeams = await this.getUserTeams(leaderId);
+      if (userTeams.teams?.length >= 5) {
         return { success: false, message: 'Достигнут лимит команд' };
       }
 
-      console.log('🔵 [TeamService] Adding document to teams collection...');
-      
       const teamRef = await addDoc(collection(db, 'teams'), {
-        name: teamData.name,
-        description: teamData.description || '',
-        image: teamData.image || null,
-        leaderId: userId,
+        name,
+        description: description || '',
+        image: null,
         members: {
-          [userId]: 'leader'
+          [leaderId]: 'leader'
         },
+        boards: [],
         createdAt: serverTimestamp(),
-        createdBy: userId
+        updatedAt: serverTimestamp()
       });
 
-      console.log('✅ [TeamService] Team created with ID:', teamRef.id);
-
-      await updateDoc(doc(db, 'users', userId), {
-        teamsCount: increment(1)
-      });
-
-      console.log('✅ [TeamService] User teamsCount incremented');
-      
       return { success: true, id: teamRef.id };
     } catch (error) {
-      console.error('🔴 [TeamService] Create team error:', error);
-      console.error('🔴 [TeamService] Error details:', error.code, error.message);
+      console.error('Create team error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getTeam(teamId) {
+    try {
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      
+      if (!teamDoc.exists()) {
+        return { success: false, message: 'Команда не найдена' };
+      }
+
+      return {
+        success: true,
+        team: { id: teamDoc.id, ...teamDoc.data() }
+      };
+    } catch (error) {
+      console.error('Get team error:', error);
       return { success: false, message: error.message };
     }
   }
 
   async getUserTeams(userId) {
     try {
-      console.log('🔵 [TeamService] Getting teams for user:', userId);
       const teamsSnapshot = await getDocs(collection(db, 'teams'));
       const teams = [];
-      
-      teamsSnapshot.forEach(docSnap => {
-        const data = docSnap.data();
+
+      teamsSnapshot.forEach(doc => {
+        const data = doc.data();
         if (data.members && data.members[userId]) {
           teams.push({
-            id: docSnap.id,
+            id: doc.id,
             ...data,
-            role: data.members[userId]
+            userRole: data.members[userId]
           });
         }
       });
 
-      console.log('✅ [TeamService] Found teams:', teams.length);
       return { success: true, teams };
     } catch (error) {
-      console.error('🔴 [TeamService] Get teams error:', error);
-      return { success: false, message: error.message };
+      console.error('Get user teams error:', error);
+      return { success: false, message: error.message, teams: [] };
     }
   }
 
   subscribeToUserTeams(userId, callback) {
     return onSnapshot(collection(db, 'teams'), (snapshot) => {
       const teams = [];
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
+      snapshot.forEach(doc => {
+        const data = doc.data();
         if (data.members && data.members[userId]) {
           teams.push({
-            id: docSnap.id,
+            id: doc.id,
             ...data,
-            role: data.members[userId]
+            userRole: data.members[userId]
           });
         }
       });
@@ -103,27 +106,145 @@ class TeamService {
     });
   }
 
-  subscribeToTeam(teamId, callback) {
-    return onSnapshot(doc(db, 'teams', teamId), (docSnap) => {
-      if (docSnap.exists()) {
-        callback({ id: docSnap.id, ...docSnap.data() });
+  async updateTeam(teamId, data, currentUserId) {
+    try {
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      if (!teamDoc.exists()) {
+        return { success: false, message: 'Команда не найдена' };
       }
-    });
+
+      const oldData = teamDoc.data();
+
+      await updateDoc(doc(db, 'teams', teamId), {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+
+      // Отправляем уведомления об изменениях
+      if (currentUserId && oldData.members) {
+        const memberIds = Object.keys(oldData.members);
+        const changes = [];
+
+        if (data.name && data.name !== oldData.name) {
+          changes.push('изменено название');
+        }
+        if (data.description !== undefined && data.description !== oldData.description) {
+          changes.push('изменено описание');
+        }
+        if (data.image !== undefined && data.image !== oldData.image) {
+          changes.push('изменено изображение');
+        }
+
+        if (changes.length > 0) {
+          await notificationService.notifyTeamUpdated(
+            teamId,
+            data.name || oldData.name,
+            memberIds,
+            currentUserId,
+            changes
+          );
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update team error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async deleteTeam(teamId) {
+    try {
+      const batch = writeBatch(db);
+
+      // Удаляем сообщения чата
+      const chatSnapshot = await getDocs(collection(db, 'teams', teamId, 'chat'));
+      chatSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      // Удаляем приглашения
+      const invitationsSnapshot = await getDocs(collection(db, 'teams', teamId, 'invitations'));
+      invitationsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      // Удаляем команду
+      batch.delete(doc(db, 'teams', teamId));
+
+      await batch.commit();
+
+      return { success: true };
+    } catch (error) {
+      console.error('Delete team error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  // =====================
+  // УЧАСТНИКИ
+  // =====================
+
+  // Прямое добавление участника (без приглашения)
+  async addMember(teamId, userId, role = 'member') {
+    try {
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      if (!teamDoc.exists()) {
+        return { success: false, message: 'Команда не найдена' };
+      }
+
+      const team = teamDoc.data();
+
+      if (team.members[userId]) {
+        return { success: false, message: 'Пользователь уже в команде' };
+      }
+
+      await updateDoc(doc(db, 'teams', teamId), {
+        [`members.${userId}`]: role,
+        updatedAt: serverTimestamp()
+      });
+
+      // Отправляем уведомление используя правильный тип
+      await notificationService.create({
+        type: notificationService.TYPES.TEAM_ADDED,
+        userId,
+        title: 'Добавление в команду',
+        message: `Вас добавили в команду "${team.name}"`,
+        link: `/team`,
+        teamId
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Add member error:', error);
+      return { success: false, message: error.message };
+    }
   }
 
   async inviteUser(teamId, userId, invitedBy) {
     try {
-      console.log('🔵 [TeamService] Inviting user:', userId, 'to team:', teamId);
-      
       const teamDoc = await getDoc(doc(db, 'teams', teamId));
       const team = teamDoc.data();
 
-      if (team.leaderId !== invitedBy) {
-        return { success: false, message: 'Только лидер может приглашать' };
+      if (team.members[invitedBy] !== 'leader' && team.members[invitedBy] !== 'admin') {
+        return { success: false, message: 'Недостаточно прав для приглашения' };
       }
 
       if (team.members[userId]) {
         return { success: false, message: 'Пользователь уже в команде' };
+      }
+
+      // Проверяем, нет ли активного приглашения
+      const existingInvitation = await getDocs(
+        query(
+          collection(db, 'teams', teamId, 'invitations'),
+          where('userId', '==', userId),
+          where('status', '==', 'pending')
+        )
+      );
+
+      if (!existingInvitation.empty) {
+        return { success: false, message: 'Приглашение уже отправлено' };
       }
 
       const invitationRef = await addDoc(collection(db, 'teams', teamId, 'invitations'), {
@@ -134,20 +255,20 @@ class TeamService {
         createdAt: serverTimestamp()
       });
 
+      // Отправляем уведомление
       await notificationService.create({
         type: 'team_invitation',
         userId,
         title: 'Приглашение в команду',
         message: `Вас пригласили в команду "${team.name}"`,
-        link: `/team/${teamId}`,
+        link: `/team`,
         actorId: invitedBy,
         teamId
       });
 
-      console.log('✅ [TeamService] User invited, invitation ID:', invitationRef.id);
       return { success: true, id: invitationRef.id };
     } catch (error) {
-      console.error('🔴 [TeamService] Invite user error:', error);
+      console.error('Invite user error:', error);
       return { success: false, message: error.message };
     }
   }
@@ -171,6 +292,7 @@ class TeamService {
             id: invDoc.id,
             teamId: teamDoc.id,
             teamName: teamDoc.data().name,
+            teamImage: teamDoc.data().image,
             ...invDoc.data()
           });
         });
@@ -178,65 +300,40 @@ class TeamService {
 
       return { success: true, invitations };
     } catch (error) {
-      console.error('🔴 [TeamService] Get invitations error:', error);
-      return { success: false, message: error.message };
+      console.error('Get invitations error:', error);
+      return { success: false, message: error.message, invitations: [] };
     }
   }
 
   async acceptInvitation(teamId, invitationId, userId) {
     try {
       await updateDoc(doc(db, 'teams', teamId, 'invitations', invitationId), {
-        status: 'accepted'
+        status: 'accepted',
+        acceptedAt: serverTimestamp()
       });
 
       await updateDoc(doc(db, 'teams', teamId), {
-        [`members.${userId}`]: 'member'
-      });
-
-      await updateDoc(doc(db, 'users', userId), {
-        teamsCount: increment(1)
+        [`members.${userId}`]: 'member',
+        updatedAt: serverTimestamp()
       });
 
       return { success: true };
     } catch (error) {
-      console.error('🔴 [TeamService] Accept invitation error:', error);
+      console.error('Accept invitation error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async rejectInvitation(teamId, invitationId) {
+  async declineInvitation(teamId, invitationId) {
     try {
       await updateDoc(doc(db, 'teams', teamId, 'invitations', invitationId), {
-        status: 'rejected'
+        status: 'declined',
+        declinedAt: serverTimestamp()
       });
 
       return { success: true };
     } catch (error) {
-      console.error('🔴 [TeamService] Reject invitation error:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  async leaveTeam(teamId, userId) {
-    try {
-      const teamDoc = await getDoc(doc(db, 'teams', teamId));
-      const team = teamDoc.data();
-
-      if (team.leaderId === userId) {
-        return { success: false, message: 'Лидер не может выйти из команды' };
-      }
-
-      await updateDoc(doc(db, 'teams', teamId), {
-        [`members.${userId}`]: deleteField()
-      });
-
-      await updateDoc(doc(db, 'users', userId), {
-        teamsCount: increment(-1)
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error('🔴 [TeamService] Leave team error:', error);
+      console.error('Decline invitation error:', error);
       return { success: false, message: error.message };
     }
   }
@@ -246,79 +343,180 @@ class TeamService {
       const teamDoc = await getDoc(doc(db, 'teams', teamId));
       const team = teamDoc.data();
 
-      if (team.leaderId !== removedBy) {
-        return { success: false, message: 'Только лидер может удалять участников' };
+      if (team.members[userId] === 'leader') {
+        return { success: false, message: 'Лидер не может выйти из команды. Передайте права или удалите команду.' };
       }
 
-      if (userId === team.leaderId) {
-        return { success: false, message: 'Нельзя удалить лидера' };
-      }
+      const updates = {};
+      updates[`members.${userId}`] = null;
 
       await updateDoc(doc(db, 'teams', teamId), {
-        [`members.${userId}`]: deleteField()
+        ...updates,
+        updatedAt: serverTimestamp()
       });
 
-      await updateDoc(doc(db, 'users', userId), {
-        teamsCount: increment(-1)
-      });
+      // Отправляем уведомление об удалении
+      if (removedBy && userId !== removedBy) {
+        await notificationService.notifyTeamMemberRemoved(
+          teamId,
+          team.name,
+          userId,
+          removedBy
+        );
+      }
 
       return { success: true };
     } catch (error) {
-      console.error('🔴 [TeamService] Remove member error:', error);
+      console.error('Remove member error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async deleteTeam(teamId, userId) {
+  async updateMemberRole(teamId, userId, newRole, changedBy) {
     try {
+      // Получаем данные команды для уведомления
       const teamDoc = await getDoc(doc(db, 'teams', teamId));
       const team = teamDoc.data();
 
-      if (team.leaderId !== userId) {
-        return { success: false, message: 'Только лидер может удалить команду' };
-      }
+      await updateDoc(doc(db, 'teams', teamId), {
+        [`members.${userId}`]: newRole,
+        updatedAt: serverTimestamp()
+      });
 
-      const memberIds = Object.keys(team.members);
-      for (const memberId of memberIds) {
-        await updateDoc(doc(db, 'users', memberId), {
-          teamsCount: increment(-1)
-        });
+      // Отправляем уведомление об изменении роли
+      if (changedBy && userId !== changedBy && team) {
+        await notificationService.notifyTeamMemberRoleChanged(
+          teamId,
+          team.name,
+          userId,
+          newRole,
+          changedBy
+        );
       }
-
-      await deleteDoc(doc(db, 'teams', teamId));
 
       return { success: true };
     } catch (error) {
-      console.error('🔴 [TeamService] Delete team error:', error);
+      console.error('Update member role error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async sendMessage(teamId, userId, text, mentions = [], attachments = []) {
+  // =====================
+  // ДОСКИ КОМАНДЫ
+  // =====================
+
+  async addTeamBoard(teamId, boardId) {
     try {
-      const messageRef = await addDoc(collection(db, 'teams', teamId, 'chat'), {
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      const team = teamDoc.data();
+      const boards = team.boards || [];
+      
+      if (!boards.includes(boardId)) {
+        boards.push(boardId);
+        await updateDoc(doc(db, 'teams', teamId), {
+          boards,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Add team board error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async removeTeamBoard(teamId, boardId) {
+    try {
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      const team = teamDoc.data();
+      const boards = (team.boards || []).filter(id => id !== boardId);
+      
+      await updateDoc(doc(db, 'teams', teamId), {
+        boards,
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Remove team board error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getTeamBoards(teamId) {
+    try {
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      if (!teamDoc.exists()) {
+        return { success: false, message: 'Команда не найдена', boards: [] };
+      }
+      
+      const team = teamDoc.data();
+      return { success: true, boardIds: team.boards || [] };
+    } catch (error) {
+      console.error('Get team boards error:', error);
+      return { success: false, message: error.message, boards: [] };
+    }
+  }
+
+  // =====================
+  // ЧАТ
+  // =====================
+
+  async sendMessage(teamId, userId, text, mentions = [], attachments = [], entityLinks = [], parentId = null) {
+    try {
+      const messageData = {
         userId,
         text,
         mentions,
         attachments,
-        createdAt: serverTimestamp()
-      });
+        entityLinks,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
 
+      // Если это ответ, добавляем parentId
+      if (parentId) {
+        messageData.parentId = parentId;
+      }
+
+      const messageRef = await addDoc(collection(db, 'teams', teamId, 'chat'), messageData);
+
+      // Отправляем уведомления упомянутым
       for (const mentionedUserId of mentions) {
-        await notificationService.create({
-          type: 'team_mention',
-          userId: mentionedUserId,
-          title: 'Вас упомянули в чате',
-          message: `В чате команды`,
-          link: `/team/${teamId}`,
-          actorId: userId,
-          teamId
-        });
+        if (mentionedUserId !== userId) {
+          await notificationService.create({
+            type: 'team_mention',
+            userId: mentionedUserId,
+            title: 'Вас упомянули в чате',
+            message: 'В чате команды',
+            link: `/team/${teamId}/chat`,
+            actorId: userId,
+            teamId
+          });
+        }
       }
 
       return { success: true, id: messageRef.id };
     } catch (error) {
-      console.error('🔴 [TeamService] Send message error:', error);
+      console.error('Send message error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async updateMessage(teamId, messageId, data) {
+    try {
+      await updateDoc(
+        doc(db, 'teams', teamId, 'chat', messageId),
+        {
+          ...data,
+          updatedAt: serverTimestamp(),
+        }
+      );
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update message error:', error);
       return { success: false, message: error.message };
     }
   }
@@ -331,13 +529,40 @@ class TeamService {
     return onSnapshot(q, (snapshot) => {
       const messages = [];
       snapshot.forEach(docSnap => {
+        const data = docSnap.data();
         messages.push({
           id: docSnap.id,
-          ...docSnap.data()
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt
         });
       });
+      
+      // Сортируем по времени
+      messages.sort((a, b) => {
+        const dateA = a.createdAt || new Date(0);
+        const dateB = b.createdAt || new Date(0);
+        return dateA - dateB;
+      });
+      
       callback(messages);
     });
+  }
+
+  async deleteMessage(teamId, messageId, userId) {
+    try {
+      const messageDoc = await getDoc(doc(db, 'teams', teamId, 'chat', messageId));
+      
+      if (messageDoc.data().userId !== userId) {
+        return { success: false, message: 'Можно удалять только свои сообщения' };
+      }
+
+      await deleteDoc(doc(db, 'teams', teamId, 'chat', messageId));
+
+      return { success: true };
+    } catch (error) {
+      console.error('Delete message error:', error);
+      return { success: false, message: error.message };
+    }
   }
 }
 

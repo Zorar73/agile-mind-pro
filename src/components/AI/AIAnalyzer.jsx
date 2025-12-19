@@ -59,7 +59,7 @@ function AIAnalyzer({ boardId, board, columns, onClose }) {
 
     // Временно: пустые теги и доски (можно добавить сервисы для них)
     setTags([]);
-    setBoards([{ id: boardId, title: board.title }]);
+    setBoards([{ id: boardId, title: board?.title || 'Доска' }]);
   };
 
   const handleAnalyze = async () => {

@@ -26,7 +26,8 @@ import {
   InputAdornment,
   CircularProgress,
   Skeleton,
-  IconButton
+  IconButton,
+  useTheme,
 } from '@mui/material';
 import {
   MoreVert,
@@ -34,15 +35,22 @@ import {
   Close,
   Edit,
   Delete,
-  Search
+  Search,
+  Person,
+  Article,
+  Lock,
+  LockOpen,
 } from '@mui/icons-material';
 import { UserContext } from '../App';
 import MainLayout from '../components/Layout/MainLayout';
+import UserProfileDrawer from '../components/User/UserProfileDrawer';
 import userService from '../services/user.service';
 import { format } from 'date-fns';
 
 function UsersPage() {
   const { user } = useContext(UserContext);
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -54,8 +62,11 @@ function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // UserProfileDrawer state
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [profileUserId, setProfileUserId] = useState(null);
 
-  // src/pages/UsersPage.jsx - замени только useEffect (строка 43)
   useEffect(() => {
     const unsubscribe = userService.subscribeToUsers((usersData) => {
       setUsers(usersData);
@@ -91,12 +102,18 @@ function UsersPage() {
   };
 
   const handleMenuOpen = (event, userObj) => {
+    event.stopPropagation();
     setAnchorEl(event.currentTarget);
     setSelectedUser(userObj);
   };
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleRowClick = (userObj) => {
+    setProfileUserId(userObj.id);
+    setProfileDrawerOpen(true);
   };
 
   const handleApprove = async () => {
@@ -160,6 +177,22 @@ function UsersPage() {
     }
   };
 
+  const handleToggleNewsPermission = async () => {
+    if (!selectedUser) return;
+
+    setActionLoading(true);
+    try {
+      const newValue = !selectedUser.canCreateNews;
+      await userService.updateUserPermissions(selectedUser.id, { canCreateNews: newValue });
+      setDialogOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      alert('Ошибка при изменении прав');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const getRoleChip = (role) => {
     const roleConfig = {
       admin: { label: 'Администратор', color: 'error' },
@@ -179,16 +212,27 @@ function UsersPage() {
     return (
       <MainLayout title="Управление пользователями">
         <Box sx={{ mb: 3 }}>
-          <Skeleton variant="rectangular" height={48} />
+          <Skeleton variant="rectangular" height={48} sx={{ borderRadius: 1 }} />
         </Box>
-        <Skeleton variant="rectangular" height={56} sx={{ mb: 2 }} />
-        <Skeleton variant="rectangular" height={400} />
+        <Skeleton variant="rectangular" height={56} sx={{ mb: 2, borderRadius: 1 }} />
+        <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
       </MainLayout>
     );
   }
 
   return (
     <MainLayout title="Управление пользователями">
+      {/* Заголовок */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" fontWeight={700} gutterBottom>
+          Пользователи
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Управление пользователями системы
+        </Typography>
+      </Box>
+
+      {/* Табы */}
       <Box sx={{ mb: 3 }}>
         <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
           <Tab label={`Все пользователи (${users.length})`} />
@@ -209,6 +253,7 @@ function UsersPage() {
         </Tabs>
       </Box>
 
+      {/* Поиск */}
       <TextField
         fullWidth
         size="small"
@@ -225,7 +270,8 @@ function UsersPage() {
         sx={{ mb: 3 }}
       />
 
-      <TableContainer component={Paper}>
+      {/* Таблица */}
+      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -234,6 +280,7 @@ function UsersPage() {
               <TableCell>Должность</TableCell>
               <TableCell>Ответственность</TableCell>
               <TableCell>Роль</TableCell>
+              <TableCell>Права</TableCell>
               <TableCell>Дата регистрации</TableCell>
               <TableCell align="right">Действия</TableCell>
             </TableRow>
@@ -241,33 +288,112 @@ function UsersPage() {
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
-                    {searchQuery ? 'Пользователи не найдены' : 'Нет пользователей'}
-                  </Typography>
+                <TableCell colSpan={8} align="center">
+                  <Box sx={{ py: 6 }}>
+                    <Person sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {searchQuery ? 'Пользователи не найдены' : 'Нет пользователей'}
+                    </Typography>
+                  </Box>
                 </TableCell>
               </TableRow>
             ) : (
               filteredUsers.map((u) => (
-                <TableRow key={u.id}>
+                <TableRow 
+                  key={u.id}
+                  hover
+                  onClick={() => handleRowClick(u)}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                    },
+                  }}
+                >
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar src={u.avatar}>
+                      <Avatar 
+                        src={u.avatar?.startsWith('http') ? u.avatar : undefined}
+                        sx={{ bgcolor: 'primary.main' }}
+                      >
                         {u.firstName?.charAt(0) || '?'}
                       </Avatar>
-                      <Typography variant="body2">
-                        {u.firstName} {u.middleName} {u.lastName}
-                      </Typography>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {u.firstName} {u.middleName} {u.lastName}
+                        </Typography>
+                        {u.status === 'online' && (
+                          <Chip 
+                            label="Онлайн" 
+                            size="small" 
+                            sx={{ 
+                              height: 18, 
+                              fontSize: '0.65rem',
+                              bgcolor: 'success.main',
+                              color: 'white',
+                            }} 
+                          />
+                        )}
+                      </Box>
                     </Box>
                   </TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>{u.position}</TableCell>
-                  <TableCell>{u.responsibility}</TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {u.email}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{u.position || '—'}</TableCell>
+                  <TableCell>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        maxWidth: 200, 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {u.responsibility || '—'}
+                    </Typography>
+                  </TableCell>
                   <TableCell>{getRoleChip(u.role)}</TableCell>
                   <TableCell>
-                    {u.createdAt && format(u.createdAt.toDate(), 'dd.MM.yyyy')}
+                    {u.role === 'admin' ? (
+                      <Chip
+                        label="Полный доступ"
+                        size="small"
+                        color="default"
+                        icon={<LockOpen />}
+                      />
+                    ) : (
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {u.canCreateNews && (
+                          <Chip
+                            label="Создание новостей"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            icon={<Article />}
+                          />
+                        )}
+                        {!u.canCreateNews && u.role !== 'pending' && (
+                          <Chip
+                            label="Нет особых прав"
+                            size="small"
+                            color="default"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                    )}
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell>
+                    {u.createdAt && format(
+                      u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt),
+                      'dd.MM.yyyy'
+                    )}
+                  </TableCell>
+                  <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                     {u.role === 'pending' ? (
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                         <Button
@@ -275,11 +401,13 @@ function UsersPage() {
                           variant="contained"
                           color="success"
                           startIcon={<Check />}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedUser(u);
                             setDialogType('approve');
                             setDialogOpen(true);
                           }}
+                          sx={{ borderRadius: 50 }}
                         >
                           Одобрить
                         </Button>
@@ -288,11 +416,13 @@ function UsersPage() {
                           variant="outlined"
                           color="error"
                           startIcon={<Close />}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedUser(u);
                             setDialogType('reject');
                             setDialogOpen(true);
                           }}
+                          sx={{ borderRadius: 50 }}
                         >
                           Отклонить
                         </Button>
@@ -315,11 +445,34 @@ function UsersPage() {
         </Table>
       </TableContainer>
 
+      {/* Меню действий */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem
+          onClick={() => {
+            if (selectedUser) {
+              setProfileUserId(selectedUser.id);
+              setProfileDrawerOpen(true);
+            }
+            handleMenuClose();
+          }}
+        >
+          <Person sx={{ mr: 1 }} /> Профиль
+        </MenuItem>
+        {selectedUser?.role !== 'admin' && (
+          <MenuItem
+            onClick={() => {
+              setDialogType('managePermissions');
+              setDialogOpen(true);
+              handleMenuClose();
+            }}
+          >
+            <Lock sx={{ mr: 1 }} /> Управление правами
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() => {
             setDialogType('changeRole');
@@ -335,12 +488,18 @@ function UsersPage() {
             setDialogOpen(true);
             handleMenuClose();
           }}
+          sx={{ color: 'error.main' }}
         >
           <Delete sx={{ mr: 1 }} /> Удалить
         </MenuItem>
       </Menu>
 
-      <Dialog open={dialogOpen} onClose={() => !actionLoading && setDialogOpen(false)}>
+      {/* Диалоги */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={() => !actionLoading && setDialogOpen(false)}
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
         {dialogType === 'approve' && (
           <>
             <DialogTitle>Одобрить пользователя</DialogTitle>
@@ -350,7 +509,7 @@ function UsersPage() {
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading}>
+              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading} sx={{ borderRadius: 50 }}>
                 Отмена
               </Button>
               <Button 
@@ -359,6 +518,7 @@ function UsersPage() {
                 color="success"
                 disabled={actionLoading}
                 startIcon={actionLoading && <CircularProgress size={16} />}
+                sx={{ borderRadius: 50 }}
               >
                 Одобрить
               </Button>
@@ -378,7 +538,7 @@ function UsersPage() {
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading}>
+              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading} sx={{ borderRadius: 50 }}>
                 Отмена
               </Button>
               <Button 
@@ -387,6 +547,7 @@ function UsersPage() {
                 color="error"
                 disabled={actionLoading}
                 startIcon={actionLoading && <CircularProgress size={16} />}
+                sx={{ borderRadius: 50 }}
               >
                 Отклонить
               </Button>
@@ -406,6 +567,7 @@ function UsersPage() {
                   variant={selectedUser?.role === 'user' ? 'contained' : 'outlined'}
                   onClick={() => handleChangeRole('user')}
                   disabled={actionLoading}
+                  sx={{ borderRadius: 50 }}
                 >
                   Пользователь
                 </Button>
@@ -414,13 +576,14 @@ function UsersPage() {
                   color="error"
                   onClick={() => handleChangeRole('admin')}
                   disabled={actionLoading}
+                  sx={{ borderRadius: 50 }}
                 >
                   Администратор
                 </Button>
               </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading}>
+              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading} sx={{ borderRadius: 50 }}>
                 Отмена
               </Button>
             </DialogActions>
@@ -439,7 +602,7 @@ function UsersPage() {
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading}>
+              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading} sx={{ borderRadius: 50 }}>
                 Отмена
               </Button>
               <Button
@@ -448,13 +611,79 @@ function UsersPage() {
                 color="error"
                 disabled={actionLoading}
                 startIcon={actionLoading && <CircularProgress size={16} />}
+                sx={{ borderRadius: 50 }}
               >
                 Удалить
               </Button>
             </DialogActions>
           </>
         )}
+
+        {dialogType === 'managePermissions' && (
+          <>
+            <DialogTitle>Управление правами пользователя</DialogTitle>
+            <DialogContent>
+              <Typography gutterBottom>
+                Настройка прав для {selectedUser?.firstName} {selectedUser?.lastName}:
+              </Typography>
+              <Box sx={{ mt: 3 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    mb: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Article color="primary" />
+                    <Box>
+                      <Typography variant="body1" fontWeight={600}>
+                        Создание новостей
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Разрешить пользователю создавать и публиковать новости
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Chip
+                    label={selectedUser?.canCreateNews ? 'Разрешено' : 'Запрещено'}
+                    color={selectedUser?.canCreateNews ? 'success' : 'default'}
+                    size="small"
+                    icon={selectedUser?.canCreateNews ? <LockOpen /> : <Lock />}
+                  />
+                </Box>
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDialogOpen(false)} disabled={actionLoading} sx={{ borderRadius: 50 }}>
+                Отмена
+              </Button>
+              <Button
+                onClick={handleToggleNewsPermission}
+                variant="contained"
+                color={selectedUser?.canCreateNews ? 'error' : 'success'}
+                disabled={actionLoading}
+                startIcon={actionLoading ? <CircularProgress size={16} /> : selectedUser?.canCreateNews ? <Lock /> : <LockOpen />}
+                sx={{ borderRadius: 50 }}
+              >
+                {selectedUser?.canCreateNews ? 'Запретить' : 'Разрешить'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
+
+      {/* UserProfileDrawer */}
+      <UserProfileDrawer
+        open={profileDrawerOpen}
+        onClose={() => setProfileDrawerOpen(false)}
+        userId={profileUserId}
+      />
     </MainLayout>
   );
 }

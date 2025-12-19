@@ -51,9 +51,9 @@ class AuthService {
         return { 
           success: true, 
           user: {
-            uid: userCredential.user.uid,
+            ...userDoc.data(),                    // СНАЧАЛА данные из Firestore
+            uid: userCredential.user.uid,         // ПОТОМ uid из Auth (гарантированно правильный)
             email: userCredential.user.email,
-            ...userDoc.data()
           }
         };
       }
@@ -81,9 +81,9 @@ class AuthService {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         return {
-          uid: user.uid,
+          ...userDoc.data(),        // СНАЧАЛА данные из Firestore
+          uid: user.uid,            // ПОТОМ uid из Auth
           email: user.email,
-          ...userDoc.data()
         };
       }
     }
@@ -96,9 +96,9 @@ class AuthService {
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         if (userDoc.exists()) {
           callback({
-            uid: firebaseUser.uid,
+            ...userDoc.data(),              // СНАЧАЛА данные из Firestore
+            uid: firebaseUser.uid,          // ПОТОМ uid из Auth (гарантированно правильный)
             email: firebaseUser.email,
-            ...userDoc.data()
           });
         } else {
           callback(null);

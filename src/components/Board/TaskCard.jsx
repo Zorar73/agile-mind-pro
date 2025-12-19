@@ -6,11 +6,33 @@ import {
   AttachFile,
   Comment,
   CalendarToday,
-  Loop
+  Loop,
+  CheckCircle,
+  Warning,
 } from '@mui/icons-material';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { format } from 'date-fns';
+import { format, isPast, isToday } from 'date-fns';
+
+// Универсальная функция для безопасного преобразования даты
+const toSafeDate = (date) => {
+  if (!date) return null;
+  if (date instanceof Date) return date;
+  if (typeof date.toDate === 'function') return date.toDate();
+  if (typeof date === 'string' || typeof date === 'number') return new Date(date);
+  return null;
+};
+
+// Проверка выполнена ли задача
+const isDone = (task) => task.status === 'done';
+
+// Проверка просрочена ли задача
+const isOverdue = (task) => {
+  if (isDone(task)) return false;
+  const dueDate = toSafeDate(task.dueDate);
+  if (!dueDate) return false;
+  return isPast(dueDate) && !isToday(dueDate);
+};
 
 function TaskCard({ task, onClick, isDragging }) {
   const {
@@ -27,7 +49,13 @@ function TaskCard({ task, onClick, isDragging }) {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const taskIsDone = isDone(task);
+  const taskIsOverdue = isOverdue(task);
+  const dueDate = toSafeDate(task.dueDate);
+
   const getPriorityColor = (priority) => {
+    if (taskIsDone) return 'success';
+    if (taskIsOverdue) return 'error';
     switch (priority) {
       case 'urgent':
         return 'error';
@@ -39,6 +67,8 @@ function TaskCard({ task, onClick, isDragging }) {
   };
 
   const getPriorityIcon = (priority) => {
+    if (taskIsDone) return <CheckCircle fontSize="small" />;
+    if (taskIsOverdue) return <Warning fontSize="small" />;
     switch (priority) {
       case 'urgent':
         return <Flag fontSize="small" />;
@@ -49,6 +79,28 @@ function TaskCard({ task, onClick, isDragging }) {
     }
   };
 
+  // Стили карточки в зависимости от статуса
+  const getCardStyle = () => {
+    if (taskIsDone) {
+      return {
+        bgcolor: '#e8f5e9', // Зелёный фон
+        borderLeft: 4,
+        borderColor: 'success.main',
+        opacity: 0.85,
+      };
+    }
+    if (taskIsOverdue) {
+      return {
+        bgcolor: '#ffebee', // Красный фон
+        borderLeft: 4,
+        borderColor: 'error.main',
+      };
+    }
+    return {
+      bgcolor: 'white',
+    };
+  };
+
   return (
     <Box
       ref={setNodeRef}
@@ -57,7 +109,7 @@ function TaskCard({ task, onClick, isDragging }) {
       {...listeners}
       onClick={onClick}
       sx={{
-        bgcolor: 'white',
+        ...getCardStyle(),
         borderRadius: 2,
         p: 2,
         mb: 1.5,
@@ -72,9 +124,14 @@ function TaskCard({ task, onClick, isDragging }) {
       <Typography
         variant="body1"
         fontWeight="medium"
-        sx={{ mb: 1, wordBreak: 'break-word' }}
+        sx={{ 
+          mb: 1, 
+          wordBreak: 'break-word',
+          textDecoration: taskIsDone ? 'line-through' : 'none',
+          color: taskIsDone ? 'text.secondary' : 'text.primary',
+        }}
       >
-        {task.title}
+        {taskIsDone && '✓ '}{task.title}
       </Typography>
 
       {/* Теги */}
@@ -97,10 +154,30 @@ function TaskCard({ task, onClick, isDragging }) {
           gap: 1,
         }}
       >
-        {/* Левая часть - приоритет и дата */}
+        {/* Левая часть - статус/приоритет и дата */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Приоритет */}
-          {task.priority !== 'normal' && (
+          {/* Статус выполнено */}
+          {taskIsDone && (
+            <Chip
+              icon={<CheckCircle fontSize="small" />}
+              label="Готово"
+              size="small"
+              color="success"
+            />
+          )}
+
+          {/* Просрочено */}
+          {taskIsOverdue && (
+            <Chip
+              icon={<Warning fontSize="small" />}
+              label="Просрочено"
+              size="small"
+              color="error"
+            />
+          )}
+
+          {/* Приоритет (только если не выполнено и не просрочено) */}
+          {!taskIsDone && !taskIsOverdue && task.priority !== 'normal' && (
             <Chip
               icon={getPriorityIcon(task.priority)}
               label={task.priority === 'urgent' ? 'Срочно' : 'Постоянная'}
@@ -110,11 +187,17 @@ function TaskCard({ task, onClick, isDragging }) {
           )}
 
           {/* Дедлайн */}
-          {task.dueDate && (
+          {dueDate && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <CalendarToday sx={{ fontSize: 14, color: 'text.secondary' }} />
-              <Typography variant="caption" color="text.secondary">
-                {format(new Date(task.dueDate), 'dd.MM.yyyy')}
+              <CalendarToday sx={{ 
+                fontSize: 14, 
+                color: taskIsOverdue ? 'error.main' : taskIsDone ? 'success.main' : 'text.secondary' 
+              }} />
+              <Typography 
+                variant="caption" 
+                color={taskIsOverdue ? 'error.main' : taskIsDone ? 'success.main' : 'text.secondary'}
+              >
+                {format(dueDate, 'dd.MM.yyyy')}
               </Typography>
             </Box>
           )}
@@ -157,4 +240,15 @@ function TaskCard({ task, onClick, isDragging }) {
   );
 }
 
-export default TaskCard;
+// Мемоизация для предотвращения лишних ререндеров
+export default React.memo(TaskCard, (prevProps, nextProps) => {
+  // Возвращаем true если props не изменились (пропускаем ререндер)
+  return (
+    prevProps.task.id === nextProps.task.id &&
+    prevProps.task.title === nextProps.task.title &&
+    prevProps.task.status === nextProps.task.status &&
+    prevProps.task.priority === nextProps.task.priority &&
+    prevProps.task.dueDate === nextProps.task.dueDate &&
+    prevProps.task.assigneeId === nextProps.task.assigneeId
+  );
+});

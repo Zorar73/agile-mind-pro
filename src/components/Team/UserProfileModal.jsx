@@ -10,12 +10,10 @@ import {
   IconButton,
   Button,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
   Chip,
   TextField,
   Grid,
+  Stack,
 } from '@mui/material';
 import {
   Close,
@@ -26,6 +24,8 @@ import {
   Edit,
   Save,
   Cancel,
+  Work,
+  Badge,
 } from '@mui/icons-material';
 import boardService from '../../services/board.service';
 import userService from '../../services/user.service';
@@ -56,7 +56,6 @@ function UserProfileModal({ open, onClose, user: userData, currentUser }) {
   const loadUserBoards = async () => {
     const result = await boardService.getUserBoards(userData.id);
     if (result.success) {
-      // Фильтруем доски к которым есть доступ у текущего пользователя
       const accessibleBoards = result.boards.filter(board =>
         board.members && board.members[currentUser.uid]
       );
@@ -103,185 +102,178 @@ function UserProfileModal({ open, onClose, user: userData, currentUser }) {
   if (!userData) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Профиль пользователя</Typography>
-          <IconButton onClick={onClose}>
+          <Typography variant="h6">Профиль</Typography>
+          <IconButton onClick={onClose} size="small">
             <Close />
           </IconButton>
         </Box>
       </DialogTitle>
 
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Stack spacing={2.5}>
           {/* Аватар и основная информация */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <Avatar src={getAvatarSrc()} sx={{ width: 120, height: 120 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={getAvatarSrc()} sx={{ width: 80, height: 80 }} />
             
-            {isEditing ? (
-              <Grid container spacing={2}>
-                <Grid item xs={4}>
+            <Box sx={{ flexGrow: 1 }}>
+              {isEditing ? (
+                <Stack spacing={1}>
                   <TextField
                     fullWidth
-                    label="Имя"
-                    value={editData.firstName}
-                    onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
+                    size="small"
+                    label="ФИО"
+                    value={`${editData.firstName} ${editData.middleName} ${editData.lastName}`}
+                    onChange={(e) => {
+                      const parts = e.target.value.split(' ');
+                      setEditData({
+                        ...editData,
+                        firstName: parts[0] || '',
+                        middleName: parts[1] || '',
+                        lastName: parts[2] || '',
+                      });
+                    }}
                   />
-                </Grid>
-                <Grid item xs={4}>
-                  <TextField
-                    fullWidth
-                    label="Отчество"
-                    value={editData.middleName}
-                    onChange={(e) => setEditData({ ...editData, middleName: e.target.value })}
+                </Stack>
+              ) : (
+                <>
+                  <Typography variant="h6" fontWeight="600">
+                    {userData.firstName} {userData.middleName} {userData.lastName}
+                  </Typography>
+                  <Chip
+                    label={userData.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                    color={userData.role === 'admin' ? 'error' : 'success'}
+                    size="small"
+                    sx={{ mt: 0.5 }}
                   />
-                </Grid>
-                <Grid item xs={4}>
-                  <TextField
-                    fullWidth
-                    label="Фамилия"
-                    value={editData.lastName}
-                    onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Должность"
-                    value={editData.position}
-                    onChange={(e) => setEditData({ ...editData, position: e.target.value })}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Ответственность"
-                    value={editData.responsibility}
-                    onChange={(e) => setEditData({ ...editData, responsibility: e.target.value })}
-                  />
-                </Grid>
-              </Grid>
-            ) : (
-              <>
-                <Typography variant="h5">
-                  {userData.firstName} {userData.middleName} {userData.lastName}
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  {userData.position}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {userData.responsibility}
-                </Typography>
-                <Chip
-                  label={userData.role === 'admin' ? 'Администратор' : 'Пользователь'}
-                  color={userData.role === 'admin' ? 'error' : 'success'}
-                />
-              </>
-            )}
+                </>
+              )}
+            </Box>
           </Box>
+
+          <Divider />
+
+          {/* Должность и обязанности */}
+          {isEditing ? (
+            <Stack spacing={1.5}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Должность"
+                value={editData.position}
+                onChange={(e) => setEditData({ ...editData, position: e.target.value })}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Ответственность"
+                value={editData.responsibility}
+                onChange={(e) => setEditData({ ...editData, responsibility: e.target.value })}
+                multiline
+                rows={2}
+              />
+            </Stack>
+          ) : (
+            <Stack spacing={1}>
+              {userData.position && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Work fontSize="small" color="action" />
+                  <Typography variant="body2">{userData.position}</Typography>
+                </Box>
+              )}
+              {userData.responsibility && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Badge fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">
+                    {userData.responsibility}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          )}
 
           <Divider />
 
           {/* Контакты */}
           <Box>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="subtitle2" fontWeight="600" gutterBottom>
               Контакты
             </Typography>
             
             {isEditing ? (
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="WhatsApp"
-                    value={editData.contacts.whatsapp}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      contacts: { ...editData.contacts, whatsapp: e.target.value }
-                    })}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Telegram"
-                    value={editData.contacts.telegram}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      contacts: { ...editData.contacts, telegram: e.target.value }
-                    })}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Телефон"
-                    value={editData.contacts.phone}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      contacts: { ...editData.contacts, phone: e.target.value }
-                    })}
-                  />
-                </Grid>
-              </Grid>
+              <Stack spacing={1.5}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="WhatsApp"
+                  value={editData.contacts.whatsapp}
+                  onChange={(e) => setEditData({
+                    ...editData,
+                    contacts: { ...editData.contacts, whatsapp: e.target.value }
+                  })}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Telegram"
+                  value={editData.contacts.telegram}
+                  onChange={(e) => setEditData({
+                    ...editData,
+                    contacts: { ...editData.contacts, telegram: e.target.value }
+                  })}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Телефон"
+                  value={editData.contacts.phone}
+                  onChange={(e) => setEditData({
+                    ...editData,
+                    contacts: { ...editData.contacts, phone: e.target.value }
+                  })}
+                />
+              </Stack>
             ) : (
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <IconButton
-                  color="primary"
-                  onClick={openEmail}
-                  sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
-                >
-                  <Email />
-                  <Typography variant="caption">Email</Typography>
-                </IconButton>
-
-                {(userData.contacts?.whatsapp || userData.contacts?.phone) && (
-                  <IconButton
-                    color="success"
-                    onClick={openWhatsApp}
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
-                  >
-                    <WhatsApp />
-                    <Typography variant="caption">WhatsApp</Typography>
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <IconButton size="small" color="primary" onClick={openEmail}>
+                    <Email fontSize="small" />
                   </IconButton>
-                )}
 
-                {userData.contacts?.telegram && (
-                  <IconButton
-                    color="info"
-                    onClick={openTelegram}
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
-                  >
-                    <Telegram />
-                    <Typography variant="caption">Telegram</Typography>
-                  </IconButton>
-                )}
+                  {(userData.contacts?.whatsapp || userData.contacts?.phone) && (
+                    <IconButton size="small" color="success" onClick={openWhatsApp}>
+                      <WhatsApp fontSize="small" />
+                    </IconButton>
+                  )}
 
-                {userData.contacts?.phone && (
-                  <IconButton
-                    color="primary"
-                    onClick={() => window.open(`tel:${userData.contacts.phone}`, '_blank')}
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
-                  >
-                    <Phone />
-                    <Typography variant="caption">Телефон</Typography>
-                  </IconButton>
-                )}
-              </Box>
-            )}
+                  {userData.contacts?.telegram && (
+                    <IconButton size="small" color="info" onClick={openTelegram}>
+                      <Telegram fontSize="small" />
+                    </IconButton>
+                  )}
 
-            {!isEditing && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Email: {userData.email}
+                  {userData.contacts?.phone && (
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => window.open(`tel:${userData.contacts.phone}`, '_blank')}
+                    >
+                      <Phone fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                <Typography variant="caption" color="text.secondary">
+                  {userData.email}
                 </Typography>
                 {userData.contacts?.phone && (
-                  <Typography variant="body2" color="text.secondary">
-                    Телефон: {userData.contacts.phone}
+                  <Typography variant="caption" color="text.secondary">
+                    {userData.contacts.phone}
                   </Typography>
                 )}
-              </Box>
+              </Stack>
             )}
           </Box>
 
@@ -289,39 +281,50 @@ function UserProfileModal({ open, onClose, user: userData, currentUser }) {
 
           {/* Доски */}
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Доски ({boards.length})
+            <Typography variant="subtitle2" fontWeight="600" gutterBottom>
+              Общие доски ({boards.length})
             </Typography>
-            <List>
-              {boards.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  Нет общих досок
-                </Typography>
-              ) : (
-                boards.map((board) => (
-                  <ListItem key={board.id}>
-                    <ListItemText
-                      primary={board.title}
-                      secondary={
-                        <Chip
-                          label={
-                            board.members[userData.id] === 'owner' ? 'Владелец' :
-                            board.members[userData.id] === 'editor' ? 'Редактор' : 'Наблюдатель'
-                          }
-                          size="small"
-                          color={
-                            board.members[userData.id] === 'owner' ? 'primary' :
-                            board.members[userData.id] === 'editor' ? 'secondary' : 'default'
-                          }
-                        />
+            {boards.length === 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                Нет общих досок
+              </Typography>
+            ) : (
+              <Stack spacing={0.5}>
+                {boards.slice(0, 3).map((board) => (
+                  <Box
+                    key={board.id}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      py: 0.5,
+                    }}
+                  >
+                    <Typography variant="body2" noWrap>
+                      {board.title}
+                    </Typography>
+                    <Chip
+                      label={
+                        board.members[userData.id] === 'owner' ? 'Владелец' :
+                        board.members[userData.id] === 'editor' ? 'Редактор' : 'Наблюдатель'
+                      }
+                      size="small"
+                      color={
+                        board.members[userData.id] === 'owner' ? 'primary' :
+                        board.members[userData.id] === 'editor' ? 'secondary' : 'default'
                       }
                     />
-                  </ListItem>
-                ))
-              )}
-            </List>
+                  </Box>
+                ))}
+                {boards.length > 3 && (
+                  <Typography variant="caption" color="text.secondary">
+                    +{boards.length - 3} еще
+                  </Typography>
+                )}
+              </Stack>
+            )}
           </Box>
-        </Box>
+        </Stack>
       </DialogContent>
 
       <DialogActions>
@@ -329,21 +332,21 @@ function UserProfileModal({ open, onClose, user: userData, currentUser }) {
           <>
             {isEditing ? (
               <>
-                <Button onClick={() => setIsEditing(false)} startIcon={<Cancel />}>
+                <Button onClick={() => setIsEditing(false)} startIcon={<Cancel />} size="small">
                   Отмена
                 </Button>
-                <Button onClick={handleSave} variant="contained" startIcon={<Save />}>
+                <Button onClick={handleSave} variant="contained" startIcon={<Save />} size="small">
                   Сохранить
                 </Button>
               </>
             ) : (
-              <Button onClick={() => setIsEditing(true)} startIcon={<Edit />}>
+              <Button onClick={() => setIsEditing(true)} startIcon={<Edit />} size="small">
                 Редактировать
               </Button>
             )}
           </>
         )}
-        <Button onClick={onClose}>Закрыть</Button>
+        <Button onClick={onClose} size="small">Закрыть</Button>
       </DialogActions>
     </Dialog>
   );

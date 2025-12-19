@@ -1,166 +1,343 @@
 // src/pages/DashboardPage.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import {
-  Box,
-  Typography,
-  Button,
-  Grid,
-  Card,
-  CardContent,
-  CardActionArea,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
+  Box, Typography, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
+  Menu, MenuItem, Divider, FormControl, InputLabel, Select, Slider, IconButton, useTheme,
 } from '@mui/material';
-import { Add, ViewKanban } from '@mui/icons-material';
+import { Add, Settings, CheckCircle, Lightbulb, Refresh } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../App';
 import MainLayout from '../components/Layout/MainLayout';
+import TaskDrawer from '../components/Task/TaskDrawer';
+import SketchDrawer from '../components/Sketch/SketchDrawer';
+import TeamDrawer from '../components/Team/TeamDrawer';
+import {
+  StatsWidget,
+  TasksWidget,
+  OverdueWidget,
+  BoardsWidget,
+  SketchesWidget,
+  TeamsWidget,
+  NotificationsWidget,
+} from '../components/Dashboard/widgets';
 import boardService from '../services/board.service';
+import sketchService from '../services/sketch.service';
+import teamService from '../services/team.service';
+import notificationService from '../services/notification.service';
+import taskService from '../services/task.service';
+import { isAfter, isBefore, addDays, startOfDay } from 'date-fns';
+
+const toSafeDate = (date) => {
+  if (!date) return null;
+  if (date instanceof Date) return date;
+  if (typeof date.toDate === 'function') return date.toDate();
+  return new Date(date);
+};
+
+const bauhaus = { blue: '#1E88E5', yellow: '#FDD835' };
+
+// Типы виджетов
+const WIDGET_TYPES = {
+  stats: { name: 'Статистика', icon: '📊', defaultWidth: 4, defaultHeight: 1 },
+  tasks: { name: 'Ближайшие задачи', icon: '✅', defaultWidth: 2, defaultHeight: 2 },
+  overdue: { name: 'Просроченные', icon: '⚠️', defaultWidth: 2, defaultHeight: 2 },
+  boards: { name: 'Доски', icon: '📋', defaultWidth: 2, defaultHeight: 2 },
+  sketches: { name: 'Наброски', icon: '💡', defaultWidth: 2, defaultHeight: 2 },
+  teams: { name: 'Команды', icon: '👥', defaultWidth: 2, defaultHeight: 2 },
+  notifications: { name: 'Уведомления', icon: '🔔', defaultWidth: 2, defaultHeight: 2 },
+};
+
+const DEFAULT_WIDGETS = [
+  { id: 'w1', type: 'stats', width: 4, height: 2, config: { visibleStats: ['boards', 'completed', 'overdue', 'progress'] } },
+  { id: 'w2', type: 'overdue', width: 2, height: 2, config: {} },
+  { id: 'w3', type: 'tasks', width: 2, height: 2, config: {} },
+  { id: 'w4', type: 'boards', width: 2, height: 2, config: {} },
+  { id: 'w5', type: 'sketches', width: 2, height: 2, config: {} },
+];
+
+const GRID_COLS = 4;
 
 function DashboardPage() {
   const { user } = useContext(UserContext);
   const navigate = useNavigate();
-  const [boards, setBoards] = useState([]);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newBoardTitle, setNewBoardTitle] = useState('');
+  const theme = useTheme();
 
+  // Данные
+  const [boards, setBoards] = useState([]);
+  const [sketches, setSketches] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({ total: 0, completed: 0, overdue: 0, boards: 0 });
+
+  // Виджеты
+  const [widgets, setWidgets] = useState(() => {
+    const saved = localStorage.getItem('dashboard_widgets_v3');
+    return saved ? JSON.parse(saved) : DEFAULT_WIDGETS;
+  });
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [addMenuAnchor, setAddMenuAnchor] = useState(null);
+  const [configWidget, setConfigWidget] = useState(null);
+
+  // Drawers
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedSketchId, setSelectedSketchId] = useState(null);
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
+
+  // Quick create
+  const [quickCreateType, setQuickCreateType] = useState(null);
+  const [quickTitle, setQuickTitle] = useState('');
+
+  // Загрузка данных
   useEffect(() => {
     if (!user) return;
-
-    const unsubscribe = boardService.subscribeToUserBoards(user.uid, (updatedBoards) => {
-      setBoards(updatedBoards);
-    });
-
-    return () => unsubscribe();
+    const unsubBoards = boardService.subscribeToUserBoards(user.uid, setBoards);
+    const unsubTeams = teamService.subscribeToUserTeams(user.uid, setTeams);
+    const unsubNotifications = notificationService.subscribeToUserNotifications(user.uid, (n) => setNotifications(n.slice(0, 20)));
+    loadSketches();
+    loadTasks();
+    return () => { unsubBoards(); unsubTeams(); unsubNotifications(); };
   }, [user]);
 
-  const handleCreateBoard = async () => {
-    if (!newBoardTitle.trim()) return;
+  useEffect(() => {
+    localStorage.setItem('dashboard_widgets_v3', JSON.stringify(widgets));
+  }, [widgets]);
 
-    const result = await boardService.createBoard(newBoardTitle, user.uid);
-    
-    if (result.success) {
-      setCreateDialogOpen(false);
-      setNewBoardTitle('');
-      navigate(`/board/${result.boardId}`);
+  useEffect(() => {
+    setStats(prev => ({ ...prev, boards: boards.length }));
+  }, [boards]);
+
+  const loadSketches = async () => {
+    if (!user) return;
+    const result = await sketchService.getUserSketches(user.uid);
+    if (result.success) setSketches(result.sketches);
+  };
+
+  const loadTasks = async () => {
+    if (!user) return;
+    const boardsRes = await boardService.getUserBoards(user.uid);
+    if (!boardsRes.success) return;
+
+    const tasks = [];
+    const now = new Date();
+    const today = startOfDay(now);
+
+    for (const board of boardsRes.boards) {
+      const tasksRes = await taskService.getTasksByBoard(board.id);
+      if (tasksRes.success) {
+        tasksRes.tasks.forEach(t => {
+          const dueDate = toSafeDate(t.dueDate);
+          tasks.push({ ...t, boardTitle: board.title, boardId: board.id, dueDate });
+        });
+      }
+    }
+
+    let completed = 0, overdue = 0;
+    tasks.forEach(t => {
+      if (t.status === 'done') { completed++; return; }
+      if (t.dueDate && isBefore(t.dueDate, today)) overdue++;
+    });
+
+    setAllTasks(tasks);
+    setStats(prev => ({ ...prev, total: tasks.length, completed, overdue }));
+  };
+
+  // Фильтрация задач
+  const upcomingTasks = allTasks.filter(t => {
+    if (t.status === 'done') return false;
+    if (!t.dueDate) return false;
+    const now = new Date();
+    return isAfter(t.dueDate, now) && isBefore(t.dueDate, addDays(now, 7));
+  });
+
+  const overdueTasks = allTasks.filter(t => {
+    if (t.status === 'done') return false;
+    if (!t.dueDate) return false;
+    return isBefore(t.dueDate, startOfDay(new Date()));
+  });
+
+  // Обработчики
+  const handleQuickCreate = async () => {
+    if (!quickTitle.trim()) return;
+    if (quickCreateType === 'board') {
+      const result = await boardService.createBoard(quickTitle, user.uid);
+      if (result.success) navigate(`/board/${result.boardId}`);
+    } else if (quickCreateType === 'sketch') {
+      await sketchService.createSketch({ title: quickTitle, type: 'idea', content: '' }, user.uid);
+      loadSketches();
+    }
+    setQuickCreateType(null);
+    setQuickTitle('');
+  };
+
+  const handleAddWidget = (type) => {
+    const typeConfig = WIDGET_TYPES[type];
+    const newWidget = {
+      id: `w_${Date.now()}`,
+      type,
+      width: typeConfig.defaultWidth,
+      height: typeConfig.defaultHeight,
+      config: type === 'stats' ? { visibleStats: ['boards', 'completed', 'overdue', 'progress'] } : {},
+    };
+    setWidgets([...widgets, newWidget]);
+    setAddMenuAnchor(null);
+  };
+
+  const handleRemoveWidget = (id) => setWidgets(widgets.filter(w => w.id !== id));
+
+  const handleResizeWidget = (id, newWidth, newHeight) => {
+    setWidgets(widgets.map(w => w.id === id ? { ...w, width: Math.max(1, Math.min(4, newWidth)), height: Math.max(1, Math.min(4, newHeight)) } : w));
+  };
+
+  const handleUpdateWidgetConfig = (id, newConfig) => {
+    setWidgets(widgets.map(w => w.id === id ? { ...w, config: { ...w.config, ...newConfig } } : w));
+    if (configWidget?.id === id) setConfigWidget({ ...configWidget, config: { ...configWidget.config, ...newConfig } });
+  };
+
+  const handleResetToDefault = () => setWidgets(DEFAULT_WIDGETS);
+
+  const handleNotificationClick = async (notification) => {
+    await notificationService.markAsRead(notification.id);
+    if (notification.link) navigate(notification.link);
+  };
+
+  // Рендер виджета по типу
+  const renderWidget = (widget) => {
+    const commonProps = {
+      widget,
+      isEditMode,
+      onRemove: handleRemoveWidget,
+      onOpenConfig: setConfigWidget,
+      onResize: handleResizeWidget,
+      onNavigate: navigate,
+    };
+
+    switch (widget.type) {
+      case 'stats':
+        return <StatsWidget {...commonProps} stats={stats} />;
+      case 'tasks':
+        return <TasksWidget {...commonProps} tasks={upcomingTasks} users={users} onTaskClick={setSelectedTask} />;
+      case 'overdue':
+        return <OverdueWidget {...commonProps} tasks={overdueTasks} users={users} onTaskClick={setSelectedTask} />;
+      case 'boards':
+        return <BoardsWidget {...commonProps} boards={boards} onCreateBoard={() => setQuickCreateType('board')} />;
+      case 'sketches':
+        return <SketchesWidget {...commonProps} sketches={sketches} onSketchClick={setSelectedSketchId} onCreateSketch={() => setQuickCreateType('sketch')} />;
+      case 'teams':
+        return <TeamsWidget {...commonProps} teams={teams} onTeamClick={setSelectedTeamId} />;
+      case 'notifications':
+        return <NotificationsWidget {...commonProps} notifications={notifications} onNotificationClick={handleNotificationClick} />;
+      default:
+        return null;
     }
   };
 
   return (
-    <MainLayout title="Главная">
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Мои доски
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Управляйте проектами и задачами в едином пространстве
-            </Typography>
-          </Box>
-          
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setCreateDialogOpen(true)}
-            size="large"
-          >
-            Создать доску
+    <MainLayout>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} gutterBottom>Добро пожаловать, {user?.firstName}!</Typography>
+          <Typography variant="body1" color="text.secondary">Управляйте проектами и задачами эффективно</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {isEditMode && (
+            <>
+              <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={handleResetToDefault} sx={{ borderRadius: 50 }}>По умолчанию</Button>
+              <Button variant="outlined" size="small" startIcon={<Add />} onClick={(e) => setAddMenuAnchor(e.currentTarget)} sx={{ borderRadius: 50 }}>Виджет</Button>
+            </>
+          )}
+          <Button variant={isEditMode ? 'contained' : 'outlined'} startIcon={isEditMode ? <CheckCircle /> : <Settings />} onClick={() => setIsEditMode(!isEditMode)} sx={{ borderRadius: 50 }}>
+            {isEditMode ? 'Готово' : 'Настроить'}
           </Button>
         </Box>
-
-        {boards.length === 0 ? (
-          <Card sx={{ textAlign: 'center', py: 8 }}>
-            <CardContent>
-              <ViewKanban sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                У вас пока нет досок
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Создайте первую доску для управления задачами
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => setCreateDialogOpen(true)}
-              >
-                Создать первую доску
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Grid container spacing={2}>
-            {boards.map((board) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={board.id}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 3,
-                    },
-                  }}
-                >
-                  <CardActionArea
-                    onClick={() => navigate(`/board/${board.id}`)}
-                    sx={{ height: '100%', p: 2 }}
-                  >
-                    <Box sx={{ height: 120, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <Box>
-                        <Typography variant="h6" fontWeight="600" gutterBottom noWrap>
-                          {board.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {Object.keys(board.members || {}).length} участник(ов)
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        {board.members?.[user.uid] === 'owner' && (
-                          <Chip label="Владелец" size="small" color="primary" />
-                        )}
-                        {board.members?.[user.uid] === 'editor' && (
-                          <Chip label="Редактор" size="small" color="secondary" />
-                        )}
-                      </Box>
-                    </Box>
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
       </Box>
 
-      {/* Диалог создания доски */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Создать новую доску</DialogTitle>
+      {/* Quick actions */}
+      {!isEditMode && (
+        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+          <Button variant="outlined" startIcon={<Add />} onClick={() => setQuickCreateType('board')} sx={{ borderWidth: 2, borderColor: bauhaus.blue, color: bauhaus.blue, borderRadius: 50, '&:hover': { borderWidth: 2 } }}>Новая доска</Button>
+          <Button variant="outlined" startIcon={<Lightbulb />} onClick={() => setQuickCreateType('sketch')} sx={{ borderWidth: 2, borderColor: bauhaus.yellow, color: '#B8860B', borderRadius: 50, '&:hover': { borderWidth: 2 } }}>Новый набросок</Button>
+        </Box>
+      )}
+
+      {/* Widgets Grid - адаптивная сетка для мобильных */}
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: 'repeat(1, 1fr)', // 1 колонка на телефонах (< 600px)
+          sm: 'repeat(2, 1fr)', // 2 колонки на планшетах (600-900px)
+          md: 'repeat(4, 1fr)', // 4 колонки на десктопе (> 900px)
+        },
+        gap: 2
+      }}>
+        {widgets.map(widget => (
+          <Box key={widget.id} sx={{ gridColumn: `span ${widget.width}` }}>
+            {renderWidget(widget)}
+          </Box>
+        ))}
+      </Box>
+
+      {/* Add widget menu */}
+      <Menu anchorEl={addMenuAnchor} open={Boolean(addMenuAnchor)} onClose={() => setAddMenuAnchor(null)}>
+        {Object.entries(WIDGET_TYPES).map(([key, config]) => (
+          <MenuItem key={key} onClick={() => handleAddWidget(key)}>{config.icon} {config.name}</MenuItem>
+        ))}
+      </Menu>
+
+      {/* Widget config dialog */}
+      <Dialog open={Boolean(configWidget)} onClose={() => setConfigWidget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Настройки виджета</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Название доски"
-            value={newBoardTitle}
-            onChange={(e) => setNewBoardTitle(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') handleCreateBoard();
-            }}
-            sx={{ mt: 2 }}
-            placeholder="Например: Разработка продукта Q1 2025"
-          />
+          {configWidget && (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="subtitle2" gutterBottom>Ширина (1-4 ячейки)</Typography>
+              <Slider value={configWidget.width} min={1} max={4} step={1} marks onChange={(e, v) => handleResizeWidget(configWidget.id, v, configWidget.height)} sx={{ mb: 3 }} />
+
+              <Typography variant="subtitle2" gutterBottom>Высота (1-4 ячейки)</Typography>
+              <Slider value={configWidget.height} min={1} max={4} step={1} marks onChange={(e, v) => handleResizeWidget(configWidget.id, configWidget.width, v)} sx={{ mb: 3 }} />
+
+              {configWidget.type === 'stats' && (
+                <FormControl fullWidth size="small">
+                  <InputLabel>Показатели</InputLabel>
+                  <Select
+                    multiple
+                    value={configWidget.config?.visibleStats || []}
+                    onChange={(e) => handleUpdateWidgetConfig(configWidget.id, { visibleStats: e.target.value })}
+                    label="Показатели"
+                  >
+                    <MenuItem value="boards">Досок</MenuItem>
+                    <MenuItem value="completed">Выполнено</MenuItem>
+                    <MenuItem value="overdue">Просрочено</MenuItem>
+                    <MenuItem value="progress">Прогресс</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Отмена</Button>
-          <Button onClick={handleCreateBoard} variant="contained" disabled={!newBoardTitle.trim()}>
-            Создать
-          </Button>
+          <Button onClick={() => setConfigWidget(null)}>Закрыть</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Quick create dialog */}
+      <Dialog open={Boolean(quickCreateType)} onClose={() => setQuickCreateType(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>{quickCreateType === 'board' ? 'Создать доску' : 'Создать набросок'}</DialogTitle>
+        <DialogContent>
+          <TextField autoFocus fullWidth label="Название" value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleQuickCreate()} sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setQuickCreateType(null)}>Отмена</Button>
+          <Button onClick={handleQuickCreate} variant="contained" disabled={!quickTitle.trim()}>Создать</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Drawers */}
+      {selectedTask && <TaskDrawer taskId={selectedTask.id} open={true} onClose={() => setSelectedTask(null)} drawerId={`task-${selectedTask.id}`} />}
+      {selectedSketchId && <SketchDrawer open={Boolean(selectedSketchId)} onClose={() => setSelectedSketchId(null)} sketchId={selectedSketchId} onUpdate={loadSketches} />}
+      {selectedTeamId && <TeamDrawer open={Boolean(selectedTeamId)} onClose={() => setSelectedTeamId(null)} teamId={selectedTeamId} />}
     </MainLayout>
   );
 }

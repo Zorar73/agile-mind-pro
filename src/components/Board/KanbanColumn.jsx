@@ -142,4 +142,14 @@ function KanbanColumn({ column, tasks, onCreateTask, onTaskClick, onDeleteColumn
   );
 }
 
-export default KanbanColumn;
+// Мемоизация для предотвращения лишних ререндеров
+export default React.memo(KanbanColumn, (prevProps, nextProps) => {
+  // Возвращаем true если props не изменились (пропускаем ререндер)
+  return (
+    prevProps.column.id === nextProps.column.id &&
+    prevProps.column.title === nextProps.column.title &&
+    prevProps.column.color === nextProps.column.color &&
+    prevProps.tasks.length === nextProps.tasks.length &&
+    prevProps.tasks.every((task, index) => task.id === nextProps.tasks[index]?.id)
+  );
+});

@@ -50,14 +50,9 @@ export const generateLetterAvatar = (firstName, lastName) => {
   const letter = getInitials(firstName, lastName);
   const bgColor = generateAvatarColor(firstName);
   
-  const svg = `
-    <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-      <rect width="100" height="100" fill="${bgColor}"/>
-      <text x="50" y="50" text-anchor="middle" dy=".35em" fill="white" font-family="Arial" font-size="45" font-weight="bold">
-        ${letter}
-      </text>
-    </svg>
-  `;
+  // Формируем SVG без лишних пробелов
+  const svg = `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="${bgColor}"/><text x="50" y="50" text-anchor="middle" dy=".35em" fill="white" font-family="Arial" font-size="45" font-weight="bold">${letter}</text></svg>`;
   
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  // Используем encodeURIComponent для поддержки Unicode (кириллица)
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };

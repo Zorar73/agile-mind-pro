@@ -1,3 +1,4 @@
+// src/services/sketch.service.js
 import {
   collection,
   doc,
@@ -12,17 +13,23 @@ import {
   serverTimestamp,
   orderBy,
   arrayUnion,
+  arrayRemove,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import notificationService from './notification.service';
 
 class SketchService {
+  // =====================
+  // НАБРОСКИ
+  // =====================
+
   async createSketch(sketchData, userId) {
     try {
-      console.log('🔵 [SketchService] Creating sketch:', sketchData, 'for user:', userId);
-      
       const sketchRef = await addDoc(collection(db, 'sketches'), {
         title: sketchData.title,
         description: sketchData.description || '',
+        tags: sketchData.tags || [],
         authorId: userId,
         sharedWith: {
           users: [],
@@ -33,22 +40,37 @@ class SketchService {
         updatedAt: serverTimestamp()
       });
 
-      console.log('✅ [SketchService] Sketch created with ID:', sketchRef.id);
       return { success: true, id: sketchRef.id };
     } catch (error) {
-      console.error('🔴 [SketchService] Create sketch error:', error);
-      console.error('🔴 [SketchService] Error details:', error.code, error.message);
+      console.error('Create sketch error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getSketch(sketchId) {
+    try {
+      const sketchDoc = await getDoc(doc(db, 'sketches', sketchId));
+      
+      if (!sketchDoc.exists()) {
+        return { success: false, message: 'Набросок не найден' };
+      }
+
+      return {
+        success: true,
+        sketch: { id: sketchDoc.id, ...sketchDoc.data() }
+      };
+    } catch (error) {
+      console.error('Get sketch error:', error);
       return { success: false, message: error.message };
     }
   }
 
   async getUserSketches(userId) {
     try {
-      console.log('🔵 [SketchService] Getting sketches for user:', userId);
-      
       const q = query(
         collection(db, 'sketches'),
-        where('authorId', '==', userId)
+        where('authorId', '==', userId),
+        orderBy('createdAt', 'desc')
       );
 
       const snapshot = await getDocs(q);
@@ -61,18 +83,15 @@ class SketchService {
         });
       });
 
-      console.log('✅ [SketchService] Found sketches:', sketches.length);
       return { success: true, sketches };
     } catch (error) {
-      console.error('🔴 [SketchService] Get sketches error:', error);
-      return { success: false, message: error.message };
+      console.error('Get sketches error:', error);
+      return { success: false, message: error.message, sketches: [] };
     }
   }
 
   async getAccessibleSketches(userId, userTeams = []) {
     try {
-      console.log('🔵 [SketchService] Getting accessible sketches for user:', userId, 'teams:', userTeams);
-      
       const allSketches = await getDocs(collection(db, 'sketches'));
       const sketches = [];
 
@@ -81,28 +100,34 @@ class SketchService {
         
         // Автор видит всегда
         if (data.authorId === userId) {
-          sketches.push({ id: doc.id, ...data });
+          sketches.push({ id: doc.id, ...data, accessType: 'owner' });
           return;
         }
 
         // Shared с пользователем
         if (data.sharedWith?.users?.includes(userId)) {
-          sketches.push({ id: doc.id, ...data });
+          sketches.push({ id: doc.id, ...data, accessType: 'shared' });
           return;
         }
 
         // Shared с командой
         const sharedTeamIds = data.sharedWith?.teams || [];
         if (sharedTeamIds.some(teamId => userTeams.includes(teamId))) {
-          sketches.push({ id: doc.id, ...data });
+          sketches.push({ id: doc.id, ...data, accessType: 'team' });
         }
       });
 
-      console.log('✅ [SketchService] Found accessible sketches:', sketches.length);
+      // Сортируем по дате
+      sketches.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB - dateA;
+      });
+
       return { success: true, sketches };
     } catch (error) {
-      console.error('🔴 [SketchService] Get accessible sketches error:', error);
-      return { success: false, message: error.message };
+      console.error('Get accessible sketches error:', error);
+      return { success: false, message: error.message, sketches: [] };
     }
   }
 
@@ -116,83 +141,205 @@ class SketchService {
 
   async updateSketch(sketchId, updates) {
     try {
-      console.log('🔵 [SketchService] Updating sketch:', sketchId, updates);
-      
       await updateDoc(doc(db, 'sketches', sketchId), {
         ...updates,
         updatedAt: serverTimestamp()
       });
 
-      console.log('✅ [SketchService] Sketch updated');
       return { success: true };
     } catch (error) {
-      console.error('🔴 [SketchService] Update sketch error:', error);
+      console.error('Update sketch error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async shareWithUser(sketchId, userId) {
+  async deleteSketch(sketchId) {
     try {
-      console.log('🔵 [SketchService] Sharing sketch', sketchId, 'with user:', userId);
-      
-      await updateDoc(doc(db, 'sketches', sketchId), {
-        'sharedWith.users': arrayUnion(userId)
+      const batch = writeBatch(db);
+
+      // Удаляем комментарии
+      const commentsSnapshot = await getDocs(
+        collection(db, 'sketches', sketchId, 'comments')
+      );
+      commentsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
       });
 
-      console.log('✅ [SketchService] Sketch shared with user');
+      // Удаляем набросок
+      batch.delete(doc(db, 'sketches', sketchId));
+
+      await batch.commit();
+
       return { success: true };
     } catch (error) {
-      console.error('🔴 [SketchService] Share sketch error:', error);
+      console.error('Delete sketch error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async shareWithTeam(sketchId, teamId) {
+  // =====================
+  // ШАРИНГ
+  // =====================
+
+  async shareWithUser(sketchId, userId, sharedBy) {
     try {
-      console.log('🔵 [SketchService] Sharing sketch', sketchId, 'with team:', teamId);
-      
+      // Получаем данные наброска для уведомления
+      const sketchDoc = await getDoc(doc(db, 'sketches', sketchId));
+      const sketchData = sketchDoc.data();
+
       await updateDoc(doc(db, 'sketches', sketchId), {
-        'sharedWith.teams': arrayUnion(teamId)
+        'sharedWith.users': arrayUnion(userId),
+        updatedAt: serverTimestamp()
       });
 
-      console.log('✅ [SketchService] Sketch shared with team');
+      // Отправляем уведомление
+      if (sharedBy && userId !== sharedBy && sketchData) {
+        await notificationService.notifySketchShared(
+          sketchId,
+          sketchData.title,
+          userId,
+          sharedBy
+        );
+      }
+
       return { success: true };
     } catch (error) {
-      console.error('🔴 [SketchService] Share sketch error:', error);
+      console.error('Share sketch error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async addComment(sketchId, userId, text, mentions = []) {
+  async unshareWithUser(sketchId, userId) {
     try {
-      console.log('🔵 [SketchService] Adding comment to sketch:', sketchId);
-      
-      const commentRef = await addDoc(collection(db, 'sketches', sketchId, 'comments'), {
+      await updateDoc(doc(db, 'sketches', sketchId), {
+        'sharedWith.users': arrayRemove(userId),
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Unshare sketch error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async shareWithTeam(sketchId, teamId, sharedBy) {
+    try {
+      // Получаем данные наброска и команды для уведомлений
+      const sketchDoc = await getDoc(doc(db, 'sketches', sketchId));
+      const sketchData = sketchDoc.data();
+
+      const teamDoc = await getDoc(doc(db, 'teams', teamId));
+      const teamData = teamDoc.data();
+
+      await updateDoc(doc(db, 'sketches', sketchId), {
+        'sharedWith.teams': arrayUnion(teamId),
+        updatedAt: serverTimestamp()
+      });
+
+      // Отправляем уведомления всем участникам команды
+      if (sharedBy && teamData && teamData.members && sketchData) {
+        const teamMembers = Object.keys(teamData.members);
+        await notificationService.notifySketchSharedTeam(
+          sketchId,
+          sketchData.title,
+          teamId,
+          teamMembers,
+          sharedBy
+        );
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Share sketch error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async unshareWithTeam(sketchId, teamId) {
+    try {
+      await updateDoc(doc(db, 'sketches', sketchId), {
+        'sharedWith.teams': arrayRemove(teamId),
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Unshare sketch error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  // =====================
+  // КОММЕНТАРИИ
+  // =====================
+
+  async addComment(sketchId, userId, text, attachments = [], mentions = [], entityLinks = [], parentId = null) {
+    try {
+      const commentData = {
         userId,
         text,
+        attachments,
         mentions,
+        entityLinks,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
 
-      console.log('✅ [SketchService] Comment added, ID:', commentRef.id);
+      // Если это ответ, добавляем parentId
+      if (parentId) {
+        commentData.parentId = parentId;
+      }
+
+      const commentRef = await addDoc(collection(db, 'sketches', sketchId, 'comments'), commentData);
+
+      // Получаем данные наброска для уведомлений
+      const sketchDoc = await getDoc(doc(db, 'sketches', sketchId));
+      const sketchData = sketchDoc.data();
+
+      if (sketchData) {
+        // Уведомляем автора наброска о комментарии
+        if (sketchData.authorId && sketchData.authorId !== userId) {
+          await notificationService.notifySketchComment(
+            sketchId,
+            sketchData.title,
+            sketchData.authorId,
+            userId
+          );
+        }
+
+        // Уведомляем упомянутых пользователей
+        if (mentions && mentions.length > 0) {
+          for (const mentionedUserId of mentions) {
+            if (mentionedUserId !== userId) {
+              await notificationService.notifySketchMention(
+                sketchId,
+                sketchData.title,
+                mentionedUserId,
+                userId
+              );
+            }
+          }
+        }
+      }
+
       return { success: true, id: commentRef.id };
     } catch (error) {
-      console.error('🔴 [SketchService] Add comment error:', error);
+      console.error('Add comment error:', error);
       return { success: false, message: error.message };
     }
   }
 
-  async updateComment(sketchId, commentId, text) {
+  async updateComment(sketchId, commentId, data) {
     try {
       await updateDoc(doc(db, 'sketches', sketchId, 'comments', commentId), {
-        text,
+        ...data,
         updatedAt: serverTimestamp()
       });
 
       return { success: true };
     } catch (error) {
-      console.error('🔴 [SketchService] Update comment error:', error);
+      console.error('Update comment error:', error);
       return { success: false, message: error.message };
     }
   }
@@ -202,7 +349,7 @@ class SketchService {
       await deleteDoc(doc(db, 'sketches', sketchId, 'comments', commentId));
       return { success: true };
     } catch (error) {
-      console.error('🔴 [SketchService] Delete comment error:', error);
+      console.error('Delete comment error:', error);
       return { success: false, message: error.message };
     }
   }
@@ -225,17 +372,77 @@ class SketchService {
     });
   }
 
-  async deleteSketch(sketchId) {
+  async getComments(sketchId) {
     try {
-      console.log('🔵 [SketchService] Deleting sketch:', sketchId);
-      
-      await deleteDoc(doc(db, 'sketches', sketchId));
+      const q = query(
+        collection(db, 'sketches', sketchId, 'comments'),
+        orderBy('createdAt', 'asc')
+      );
 
-      console.log('✅ [SketchService] Sketch deleted');
-      return { success: true };
+      const snapshot = await getDocs(q);
+      const comments = [];
+
+      snapshot.forEach(doc => {
+        comments.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      return { success: true, comments };
     } catch (error) {
-      console.error('🔴 [SketchService] Delete sketch error:', error);
-      return { success: false, message: error.message };
+      console.error('Get comments error:', error);
+      return { success: false, message: error.message, comments: [] };
+    }
+  }
+
+  // Получить наброски, расшаренные с командой
+  async getSketchesSharedWithTeam(teamId) {
+    try {
+      const q = query(
+        collection(db, 'sketches'),
+        where('sharedWith.teams', 'array-contains', teamId)
+      );
+
+      const snapshot = await getDocs(q);
+      const sketches = [];
+
+      snapshot.forEach(doc => {
+        sketches.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      return { success: true, sketches };
+    } catch (error) {
+      console.error('Get team sketches error:', error);
+      return { success: false, message: error.message, sketches: [] };
+    }
+  }
+
+  // Получить наброски, расшаренные с пользователем
+  async getSketchesSharedWithUser(userId) {
+    try {
+      const q = query(
+        collection(db, 'sketches'),
+        where('sharedWith.users', 'array-contains', userId)
+      );
+
+      const snapshot = await getDocs(q);
+      const sketches = [];
+
+      snapshot.forEach(doc => {
+        sketches.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      return { success: true, sketches };
+    } catch (error) {
+      console.error('Get shared sketches error:', error);
+      return { success: false, message: error.message, sketches: [] };
     }
   }
 }

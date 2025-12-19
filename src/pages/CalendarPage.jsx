@@ -43,7 +43,9 @@ import taskService from '../services/task.service';
 import boardService from '../services/board.service';
 import userService from '../services/user.service';
 import notificationService from '../services/notification.service';
-import TaskModal from '../components/Task/TaskModal';
+// ⚠️ ИСПРАВЛЕНО: Заменяем TaskModal на TaskDrawer
+import TaskDrawer from '../components/Task/TaskDrawer';
+import UnifiedTagInput from '../components/Common/UnifiedTagInput';
 import {
   startOfMonth,
   endOfMonth,
@@ -67,6 +69,15 @@ import {
   eachMonthOfInterval,
 } from 'date-fns';
 import { ru } from 'date-fns/locale';
+
+// Bauhaus цвета
+const bauhaus = {
+  blue: '#1E88E5',
+  red: '#E53935',
+  yellow: '#FDD835',
+  teal: '#26A69A',
+  purple: '#7E57C2',
+};
 
 // Компонент для перетаскиваемой задачи
 function DraggableTaskCard({ task, onClick }) {
@@ -265,12 +276,33 @@ function CalendarPage() {
     selectedTags: [],
   });
 
+
+  const [tempFilters, setTempFilters] = useState({
+    myTasks: true,
+    assignedToOthers: true,
+    urgent: true,
+    normal: true,
+    recurring: true,
+    selectedAssignees: [],
+    selectedBoards: [],
+    selectedTags: [],
+  });
+
+  // Синхронизация tempFilters при открытии меню
+  useEffect(() => {
+    if (filterAnchor) {
+      setTempFilters(filters);
+    }
+  }, [filterAnchor, filters]);
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [newTaskData, setNewTaskData] = useState({
     title: '',
     boardId: '',
+    priority: 'normal',
+    tags: [],
   });
 
   const [activeTask, setActiveTask] = useState(null);
@@ -285,10 +317,6 @@ function CalendarPage() {
   useEffect(() => {
     loadData();
   }, [user]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [filters, allTasks]);
 
   const loadData = async () => {
     if (!user) return;
@@ -342,12 +370,15 @@ function CalendarPage() {
   const applyFilters = (tasks = allTasks) => {
     let filtered = tasks;
 
+    // Проверяем членство через members MAP
+    const isMyTask = (task) => task.members && task.members[user.uid];
+    
     if (!filters.myTasks) {
-      filtered = filtered.filter(t => t.assigneeId !== user.uid);
+      filtered = filtered.filter(t => !isMyTask(t));
     }
 
     if (!filters.assignedToOthers) {
-      filtered = filtered.filter(t => t.assigneeId === user.uid || !t.assigneeId);
+      filtered = filtered.filter(t => isMyTask(t) || Object.keys(t.members || {}).length === 0);
     }
 
     const priorities = [];
@@ -360,7 +391,10 @@ function CalendarPage() {
     }
 
     if (filters.selectedAssignees.length > 0) {
-      filtered = filtered.filter(t => filters.selectedAssignees.includes(t.assigneeId));
+      // Проверяем есть ли выбранный assignee в members
+      filtered = filtered.filter(t => 
+        filters.selectedAssignees.some(assigneeId => t.members && t.members[assigneeId])
+      );
     }
 
     if (filters.selectedBoards.length > 0) {
@@ -409,27 +443,26 @@ function CalendarPage() {
 
     const newDateStr = over.id.replace('day-', '');
     
-    const result = await taskService.updateTask(
-      task.boardId,
-      task.id,
-      { dueDate: newDateStr },
-      user.uid
-    );
+    const result = await taskService.updateTask(task.id, { dueDate: newDateStr });
 
     if (result.success) {
-      if (task.assigneeId && task.assigneeId !== user.uid) {
-        await notificationService.create({
-          userId: task.assigneeId,
-          type: 'task_updated',
-          title: 'Изменён дедлайн задачи',
-          message: `Дедлайн задачи "${task.title}" изменён на ${format(new Date(newDateStr), 'd MMMM yyyy', { locale: ru })}`,
-          taskId: task.id,
-          actorId: user.uid,
-          link: `/board/${task.boardId}`,
-        });
+      // Уведомляем всех участников кроме текущего пользователя
+      const taskMembers = Object.keys(task.members || {});
+      for (const memberId of taskMembers) {
+        if (memberId !== user.uid) {
+          await notificationService.create({
+            userId: memberId,
+            type: 'task_updated',
+            title: 'Изменён дедлайн задачи',
+            message: `Дедлайн задачи "${task.title}" изменён на ${format(new Date(newDateStr), 'd MMMM yyyy', { locale: ru })}`,
+            taskId: task.id,
+            actorId: user.uid,
+            link: `/board/${task.boardId}`,
+          });
+        }
       }
 
-      if (task.creatorId && task.creatorId !== user.uid && task.creatorId !== task.assigneeId) {
+      if (task.creatorId && task.creatorId !== user.uid && !taskMembers.includes(task.creatorId)) {
         await notificationService.create({
           userId: task.creatorId,
           type: 'task_updated',
@@ -464,19 +497,19 @@ function CalendarPage() {
       return;
     }
 
-    const result = await taskService.createTask(newTaskData.boardId, {
+    const result = await taskService.createTask({
       title: newTaskData.title,
       description: '',
+      boardId: newTaskData.boardId,
       columnId: boardColumns[0].id,
       dueDate: format(selectedDate, 'yyyy-MM-dd'),
-      creatorId: user.uid,
-      priority: 'normal',
-      tags: [],
-    });
+      priority: newTaskData.priority || 'normal',
+      tags: newTaskData.tags || [],
+    }, user.uid);
 
     if (result.success) {
       setCreateDialogOpen(false);
-      setNewTaskData({ title: '', boardId: '' });
+      setNewTaskData({ title: '', boardId: '', priority: 'normal', tags: [] });
       loadData();
     } else {
       alert('Ошибка создания задачи');
@@ -938,11 +971,11 @@ function CalendarPage() {
             Показать
           </Typography>
           <FormControlLabel
-            control={<Checkbox checked={filters.myTasks} onChange={(e) => setFilters({ ...filters, myTasks: e.target.checked })} />}
+            control={<Checkbox checked={tempFilters.myTasks} onChange={(e) => setTempFilters({ ...tempFilters, myTasks: e.target.checked })} />}
             label="Мои задачи"
           />
           <FormControlLabel
-            control={<Checkbox checked={filters.assignedToOthers} onChange={(e) => setFilters({ ...filters, assignedToOthers: e.target.checked })} />}
+            control={<Checkbox checked={tempFilters.assignedToOthers} onChange={(e) => setTempFilters({ ...tempFilters, assignedToOthers: e.target.checked })} />}
             label="Задачи других"
           />
 
@@ -952,15 +985,15 @@ function CalendarPage() {
             Приоритет
           </Typography>
           <FormControlLabel
-            control={<Checkbox checked={filters.urgent} onChange={(e) => setFilters({ ...filters, urgent: e.target.checked })} />}
+            control={<Checkbox checked={tempFilters.urgent} onChange={(e) => setTempFilters({ ...tempFilters, urgent: e.target.checked })} />}
             label="Срочные"
           />
           <FormControlLabel
-            control={<Checkbox checked={filters.normal} onChange={(e) => setFilters({ ...filters, normal: e.target.checked })} />}
+            control={<Checkbox checked={tempFilters.normal} onChange={(e) => setTempFilters({ ...tempFilters, normal: e.target.checked })} />}
             label="Обычные"
           />
           <FormControlLabel
-            control={<Checkbox checked={filters.recurring} onChange={(e) => setFilters({ ...filters, recurring: e.target.checked })} />}
+            control={<Checkbox checked={tempFilters.recurring} onChange={(e) => setTempFilters({ ...tempFilters, recurring: e.target.checked })} />}
             label="Постоянные"
           />
 
@@ -970,8 +1003,8 @@ function CalendarPage() {
             <InputLabel>Исполнители</InputLabel>
             <Select
               multiple
-              value={filters.selectedAssignees}
-              onChange={(e) => setFilters({ ...filters, selectedAssignees: e.target.value })}
+              value={tempFilters.selectedAssignees}
+              onChange={(e) => setTempFilters({ ...tempFilters, selectedAssignees: e.target.value })}
               input={<OutlinedInput label="Исполнители" />}
               renderValue={(selected) => (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -986,7 +1019,7 @@ function CalendarPage() {
             >
               {users.map((u) => (
                 <MenuItem key={u.id} value={u.id}>
-                  <Checkbox checked={filters.selectedAssignees.includes(u.id)} />
+                  <Checkbox checked={tempFilters.selectedAssignees.includes(u.id)} />
                   <Avatar src={u.avatar} sx={{ width: 24, height: 24, mr: 1 }} />
                   <ListItemText primary={`${u.firstName} ${u.lastName}`} />
                 </MenuItem>
@@ -998,8 +1031,8 @@ function CalendarPage() {
             <InputLabel>Доски</InputLabel>
             <Select
               multiple
-              value={filters.selectedBoards}
-              onChange={(e) => setFilters({ ...filters, selectedBoards: e.target.value })}
+              value={tempFilters.selectedBoards}
+              onChange={(e) => setTempFilters({ ...tempFilters, selectedBoards: e.target.value })}
               input={<OutlinedInput label="Доски" />}
               renderValue={(selected) => (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -1014,55 +1047,55 @@ function CalendarPage() {
             >
               {boards.map((board) => (
                 <MenuItem key={board.id} value={board.id}>
-                  <Checkbox checked={filters.selectedBoards.includes(board.id)} />
+                  <Checkbox checked={tempFilters.selectedBoards.includes(board.id)} />
                   <ListItemText primary={board.title} />
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
 
-          <FormControl fullWidth size="small">
-            <InputLabel>Теги</InputLabel>
-            <Select
-              multiple
-              value={filters.selectedTags}
-              onChange={(e) => setFilters({ ...filters, selectedTags: e.target.value })}
-              input={<OutlinedInput label="Теги" />}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((tag) => (
-                    <Chip key={tag} label={tag} size="small" />
-                  ))}
-                </Box>
-              )}
-            >
-              {allTags.map((tag) => (
-                <MenuItem key={tag} value={tag}>
-                  <Checkbox checked={filters.selectedTags.includes(tag)} />
-                  <ListItemText primary={tag} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <UnifiedTagInput
+            value={tempFilters.selectedTags}
+            onChange={(newTags) => setTempFilters({ ...tempFilters, selectedTags: newTags })}
+            existingTags={allTags}
+            placeholder="Выберите теги..."
+            size="small"
+          />
 
           <Divider sx={{ my: 2 }} />
 
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={() => setFilters({
-              myTasks: true,
-              assignedToOthers: true,
-              urgent: true,
-              normal: true,
-              recurring: true,
-              selectedAssignees: [],
-              selectedBoards: [],
-              selectedTags: [],
-            })}
-          >
-            Очистить фильтры
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                const resetFilters = {
+                  myTasks: true,
+                  assignedToOthers: true,
+                  urgent: true,
+                  normal: true,
+                  recurring: true,
+                  selectedAssignees: [],
+                  selectedBoards: [],
+                  selectedTags: [],
+                };
+                setTempFilters(resetFilters);
+              }}
+              fullWidth
+            >
+              Очистить
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setFilters(tempFilters);
+                applyFilters(allTasks);
+                setFilterAnchor(null);
+              }}
+              fullWidth
+            >
+              Применить
+            </Button>
+          </Box>
         </Box>
       </Menu>
 
@@ -1082,7 +1115,7 @@ function CalendarPage() {
             sx={{ mt: 2, mb: 2 }}
           />
 
-          <FormControl fullWidth>
+          <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Доска</InputLabel>
             <Select
               value={newTaskData.boardId}
@@ -1091,11 +1124,41 @@ function CalendarPage() {
             >
               {boards.map((board) => (
                 <MenuItem key={board.id} value={board.id}>
-                  {board.title}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: board.color || '#6366f1' }} />
+                    {board.title}
+                  </Box>
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Приоритет</InputLabel>
+            <Select
+              value={newTaskData.priority || 'normal'}
+              label="Приоритет"
+              onChange={(e) => setNewTaskData({ ...newTaskData, priority: e.target.value })}
+            >
+              <MenuItem value="normal">
+                <Chip label="Обычный" size="small" sx={{ bgcolor: '#579bfc', color: '#fff' }} />
+              </MenuItem>
+              <MenuItem value="urgent">
+                <Chip label="Срочный" size="small" sx={{ bgcolor: '#e2445c', color: '#fff' }} />
+              </MenuItem>
+              <MenuItem value="recurring">
+                <Chip label="Постоянная" size="small" sx={{ bgcolor: '#a25ddc', color: '#fff' }} />
+              </MenuItem>
+            </Select>
+          </FormControl>
+
+          <UnifiedTagInput
+            value={newTaskData.tags || []}
+            onChange={(newTags) => setNewTaskData({ ...newTaskData, tags: newTags })}
+            existingTags={allTags}
+            placeholder="Добавить тег..."
+            size="small"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateDialogOpen(false)}>Отмена</Button>
@@ -1105,15 +1168,16 @@ function CalendarPage() {
         </DialogActions>
       </Dialog>
 
-      {selectedTask && allColumns[selectedTask.boardId] && (
-        <TaskModal
-          boardId={selectedTask.boardId}
-          task={selectedTask}
-          columns={allColumns[selectedTask.boardId]}
+      {/* ⚠️ ИСПРАВЛЕНО: Заменяем TaskModal на TaskDrawer */}
+      {selectedTask && (
+        <TaskDrawer
+          taskId={selectedTask.id}
+          open={true}
           onClose={() => {
             setSelectedTask(null);
             loadData();
           }}
+          drawerId={`task-${selectedTask.id}`}
         />
       )}
 
