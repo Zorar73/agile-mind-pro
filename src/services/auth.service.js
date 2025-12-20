@@ -1,10 +1,10 @@
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 class AuthService {
@@ -91,22 +91,44 @@ class AuthService {
   }
 
   onAuthStateChanged(callback) {
-    return onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeSnapshot = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Отписываемся от предыдущего snapshot если был
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          callback({
-            ...userDoc.data(),              // СНАЧАЛА данные из Firestore
-            uid: firebaseUser.uid,          // ПОТОМ uid из Auth (гарантированно правильный)
-            email: firebaseUser.email,
-          });
-        } else {
+        // Подписываемся на изменения документа пользователя в реальном времени
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        unsubscribeSnapshot = onSnapshot(userDocRef, (userDoc) => {
+          if (userDoc.exists()) {
+            callback({
+              ...userDoc.data(),              // СНАЧАЛА данные из Firestore
+              uid: firebaseUser.uid,          // ПОТОМ uid из Auth (гарантированно правильный)
+              email: firebaseUser.email,
+            });
+          } else {
+            callback(null);
+          }
+        }, (error) => {
+          console.error('Error listening to user changes:', error);
           callback(null);
-        }
+        });
       } else {
         callback(null);
       }
     });
+
+    // Возвращаем функцию, которая отписывается от обоих listeners
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+    };
   }
 }
 

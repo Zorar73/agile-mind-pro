@@ -9,6 +9,7 @@ import EntityDrawerManager from './components/Common/EntityDrawerManager';
 import authService from './services/auth.service';
 
 // Lazy-loaded Pages
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -29,6 +30,31 @@ const CloudinaryTestPage = lazy(() => import('./pages/CloudinaryTestPage'));
 const SprintsPage = lazy(() => import('./pages/SprintsPage'));
 
 const UserContext = createContext();
+
+function HomeRoute() {
+  const { user, loading } = React.useContext(UserContext);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Если пользователь залогинен
+  if (user) {
+    // Если pending - на pending страницу
+    if (user.role === 'pending') {
+      return <Navigate to="/pending" replace />;
+    }
+    // Иначе на dashboard
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Если не залогинен - показываем landing
+  return <LandingPage />;
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = React.useContext(UserContext);
@@ -83,8 +109,9 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/pending" element={<PendingApprovalPage />} />
 
-              {/* Главная страница - Dashboard */}
-              <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+              {/* Главная страница - Landing для незалогиненных, Dashboard для залогиненных */}
+              <Route path="/" element={<HomeRoute />} />
+              <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
               {/* Страница досок - отдельная страница со списком всех досок */}
               <Route path="/boards" element={<ProtectedRoute><BoardsPage /></ProtectedRoute>} />

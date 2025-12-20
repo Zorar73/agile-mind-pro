@@ -1,7 +1,9 @@
 // src/pages/PendingApprovalPage.jsx
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Container, Box, Card, CardContent, Typography, Button } from '@mui/material';
 import { HourglassEmpty } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { UserContext } from '../App';
 import authService from '../services/auth.service';
 
 // Bauhaus цвета
@@ -12,6 +14,17 @@ const bauhaus = {
 };
 
 function PendingApprovalPage() {
+  const { user } = useContext(UserContext);
+  const navigate = useNavigate();
+
+  // Отслеживаем изменение роли пользователя
+  useEffect(() => {
+    if (user && user.role !== 'pending') {
+      // Если роль изменилась (администратор одобрил), перенаправляем на dashboard
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
+
   const handleLogout = async () => {
     await authService.logout();
     window.location.reload();
