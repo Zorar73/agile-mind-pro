@@ -49,7 +49,7 @@ const bauhaus = {
   purple: '#7E57C2',
 };
 
-function UserProfileDrawer({ open, onClose, userId, drawerId }) {
+function UserProfileDrawer({ open, onClose, userId, drawerId, onAssignTask, onStartChat }) {
   const { user: currentUser } = useContext(UserContext);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +96,7 @@ function UserProfileDrawer({ open, onClose, userId, drawerId }) {
       let overdueTasks = 0;
 
       for (const board of boardsResult.boards) {
-        const tasksResult = await taskService.getTasks(board.id);
+        const tasksResult = await taskService.getTasksByBoard(board.id);
         if (tasksResult.success) {
           tasksResult.tasks.forEach(task => {
             // Проверяем, назначена ли задача на этого пользователя

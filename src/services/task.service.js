@@ -234,22 +234,23 @@ const taskService = {
 
         // Уведомление об изменении статуса
         if (updates.status && updates.status !== oldData.status) {
-          await notificationService.notifyTaskStatusChanged(
-            taskId,
-            oldData.title,
-            oldData.boardId,
-            memberIds,
-            updates.status,
-            currentUserId
-          );
-
-          // Уведомление о завершении задачи
+          // Если задача завершается, отправляем специальное уведомление о завершении
           if (updates.status === 'done') {
             await notificationService.notifyTaskCompleted(
               taskId,
               oldData.title,
               oldData.boardId,
               memberIds,
+              currentUserId
+            );
+          } else {
+            // Для остальных статусов отправляем обычное уведомление об изменении
+            await notificationService.notifyTaskStatusChanged(
+              taskId,
+              oldData.title,
+              oldData.boardId,
+              memberIds,
+              updates.status,
               currentUserId
             );
           }
