@@ -563,47 +563,64 @@ function CalendarPage() {
     }
 
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2,
+        mb: 2
+      }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h5" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>
+          <Typography variant="h5" fontWeight="bold" sx={{ textTransform: 'capitalize', fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
             {title}
           </Typography>
         </Box>
-        
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <ButtonGroup size="small">
-            <Button 
+
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+          <ButtonGroup size="small" sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+            <Button
               variant={viewMode === 'year' ? 'contained' : 'outlined'}
               onClick={() => setViewMode('year')}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              Год
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Год</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Г</Box>
             </Button>
-            <Button 
+            <Button
               variant={viewMode === 'quarter' ? 'contained' : 'outlined'}
               onClick={() => setViewMode('quarter')}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              Квартал
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Квартал</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Кв</Box>
             </Button>
-            <Button 
+            <Button
               variant={viewMode === 'month' ? 'contained' : 'outlined'}
               onClick={() => setViewMode('month')}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              Месяц
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Месяц</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>М</Box>
             </Button>
-            <Button 
+            <Button
               variant={viewMode === 'week' ? 'contained' : 'outlined'}
               onClick={() => setViewMode('week')}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              Неделя
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Неделя</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Н</Box>
             </Button>
-            <Button 
+            <Button
               variant={viewMode === 'day' ? 'contained' : 'outlined'}
               onClick={() => {
                 setCurrentDate(new Date());
                 setViewMode('day');
               }}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              День
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>День</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Д</Box>
             </Button>
           </ButtonGroup>
 
