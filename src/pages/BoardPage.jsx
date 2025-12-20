@@ -881,6 +881,7 @@ ${tasks.slice(0, 10).map(t => `- ${t.title} (${t.status || 'todo'})`).join('\n')
             exclusive
             onChange={(e, v) => v && setViewMode(v)}
             size="small"
+            sx={{ display: { xs: 'none', md: 'inline-flex' } }}
           >
             <ToggleButton value="kanban">
               <ViewKanban fontSize="small" />

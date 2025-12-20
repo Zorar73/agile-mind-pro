@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Grid,
   ToggleButtonGroup, ToggleButton, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Fab, Menu, Divider, IconButton, Collapse, Badge, InputAdornment,
-  useTheme,
+  useTheme, useMediaQuery,
 } from '@mui/material';
 import {
   ViewList, ViewModule, ViewKanban, TableChart, Assignment, CalendarToday, Add,
@@ -63,7 +63,8 @@ function MyTasksPage() {
   const { user } = useContext(UserContext);
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   const [tasks, setTasks] = useState([]);
   const [boards, setBoards] = useState({});
   const [boardsList, setBoardsList] = useState([]);
@@ -81,6 +82,13 @@ function MyTasksPage() {
   const [groupAnchor, setGroupAnchor] = useState(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', boardId: '', priority: 'normal', dueDate: null });
+
+  // Force list/cards view on mobile
+  useEffect(() => {
+    if (isMobile && (viewMode === 'kanban' || viewMode === 'table')) {
+      setViewMode('cards');
+    }
+  }, [isMobile, viewMode]);
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
@@ -426,8 +434,8 @@ function MyTasksPage() {
           <ToggleButtonGroup value={viewMode} exclusive onChange={(e, v) => v && setViewMode(v)} size="small" sx={{ '& .MuiToggleButton-root': { borderRadius: '50px !important', px: 1.5, '&.Mui-selected': { bgcolor: bauhaus.blue, color: 'white', '&:hover': { bgcolor: bauhaus.blue } } } }}>
             <ToggleButton value="list"><ViewList fontSize="small" /></ToggleButton>
             <ToggleButton value="cards"><ViewModule fontSize="small" /></ToggleButton>
-            <ToggleButton value="kanban"><ViewKanban fontSize="small" /></ToggleButton>
-            <ToggleButton value="table"><TableChart fontSize="small" /></ToggleButton>
+            <ToggleButton value="kanban" sx={{ display: { xs: 'none', md: 'inline-flex' } }}><ViewKanban fontSize="small" /></ToggleButton>
+            <ToggleButton value="table" sx={{ display: { xs: 'none', md: 'inline-flex' } }}><TableChart fontSize="small" /></ToggleButton>
           </ToggleButtonGroup>
         </Box>
 

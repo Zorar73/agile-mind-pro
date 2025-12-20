@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   Box,
-  Container,
   Typography,
   Button,
   Fab,
@@ -127,7 +126,7 @@ function NewsPage() {
 
   return (
     <MainLayout title="Новости">
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Box sx={{ py: 4 }}>
       {/* Заголовок */}
       <Box
         sx={{
@@ -282,7 +281,7 @@ function NewsPage() {
         onClose={() => setCreateDialogOpen(false)}
         onCreate={handleCreateNews}
       />
-      </Container>
+      </Box>
     </MainLayout>
   );
 }

@@ -47,7 +47,6 @@ import { UserContext } from '../App';
 import MainLayout from '../components/Layout/MainLayout';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { gradients } from '../theme';
-import TestToastAndAI from '../components/Common/TestToastAndAI';
 import soundNotifications from '../utils/soundNotifications';
 import browserPush from '../utils/browserPushNotifications';
 import { VolumeUp, VolumeOff } from '@mui/icons-material';
@@ -664,9 +663,6 @@ function SettingsPage() {
             Сохранить
           </Button>
         </Box>
-
-        {/* Test Toast and AI Components */}
-        <TestToastAndAI />
 
         {/* Информация */}
         <Alert severity="info" icon={<Info />}>
