@@ -174,7 +174,14 @@ function NotificationsPage() {
   return (
     <MainLayout>
       {/* Заголовок */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2,
+        mb: 3
+      }}>
         <Box>
           <Typography variant="h4" fontWeight="700" gutterBottom>
             Уведомления
@@ -183,13 +190,13 @@ function NotificationsPage() {
             Все события и обновления в одном месте
           </Typography>
         </Box>
-        
+
         {unreadCount > 0 && (
           <Button
             variant="outlined"
             startIcon={<DoneAll />}
             onClick={handleMarkAllAsRead}
-            sx={{ borderRadius: 50 }}
+            sx={{ borderRadius: 50, alignSelf: { xs: 'stretch', sm: 'auto' } }}
           >
             Прочитать все ({unreadCount})
           </Button>

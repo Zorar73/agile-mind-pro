@@ -787,13 +787,20 @@ ${tasks.slice(0, 10).map(t => `- ${t.title} (${t.status || 'todo'})`).join('\n')
       />
 
       {/* Хедер */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2,
+        mb: 2
+      }}>
         {/* Левая часть: название + команда */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h5" fontWeight="bold">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', minWidth: 0 }}>
+          <Typography variant="h5" fontWeight="bold" noWrap>
             {board.title}
           </Typography>
-          
+
           <AvatarGroup max={5}>
             {boardMembers.map(member => (
               <Tooltip key={member.id} title={`${member.firstName} ${member.lastName}`}>
@@ -806,7 +813,7 @@ ${tasks.slice(0, 10).map(t => `- ${t.title} (${t.status || 'todo'})`).join('\n')
         </Box>
 
         {/* Правая часть: кнопки */}
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
           {/* AI - Создать задачи */}
           <Button
             variant="contained"
@@ -818,9 +825,11 @@ ${tasks.slice(0, 10).map(t => `- ${t.title} (${t.status || 'todo'})`).join('\n')
               '&:hover': {
                 background: 'linear-gradient(135deg, #5568d3 0%, #66438e 100%)',
               },
+              whiteSpace: 'nowrap',
             }}
           >
-            AI Задачи
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>AI Задачи</Box>
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>AI</Box>
           </Button>
 
           {/* Добавить колонку */}
@@ -833,6 +842,7 @@ ${tasks.slice(0, 10).map(t => `- ${t.title} (${t.status || 'todo'})`).join('\n')
               setNewColumnTitle('');
               setColumnDialogOpen(true);
             }}
+            sx={{ whiteSpace: 'nowrap', display: { xs: 'none', sm: 'inline-flex' } }}
           >
             Колонка
           </Button>
@@ -849,6 +859,7 @@ ${tasks.slice(0, 10).map(t => `- ${t.title} (${t.status || 'todo'})`).join('\n')
                 setPlanningDialogOpen(true);
               }
             }}
+            sx={{ whiteSpace: 'nowrap', display: { xs: 'none', sm: 'inline-flex' } }}
           >
             {activeSprint ? 'Спринт' : 'Начать спринт'}
           </Button>

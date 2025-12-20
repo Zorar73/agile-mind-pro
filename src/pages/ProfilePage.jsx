@@ -393,7 +393,7 @@ function ProfilePage() {
                 {/* Форма редактирования / Данные */}
                 {isEditing ? (
                   <Stack spacing={2}>
-                    <Stack direction="row" spacing={2}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                       <TextField
                         fullWidth
                         size="small"
@@ -503,18 +503,21 @@ function ProfilePage() {
                     </Box>
 
                     {user?.contacts && (user.contacts.whatsapp || user.contacts.telegram || user.contacts.phone) && (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 2, 
-                        p: 1.5, 
-                        bgcolor: isDark ? 'background.subtle' : 'grey.50', 
-                        borderRadius: 2 
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        p: 1.5,
+                        bgcolor: isDark ? 'background.subtle' : 'grey.50',
+                        borderRadius: 2
                       }}>
                         <Badge color="secondary" />
-                        <Box>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Typography variant="caption" color="text.secondary">Контакты</Typography>
-                          <Typography variant="body2" fontWeight={500}>
+                          <Typography variant="body2" fontWeight={500} sx={{
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word',
+                          }}>
                             {[user.contacts.whatsapp, user.contacts.telegram, user.contacts.phone].filter(Boolean).join(' • ') || '—'}
                           </Typography>
                         </Box>
@@ -542,62 +545,62 @@ function ProfilePage() {
 
                 {/* Карточки статистики */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid size={6}>
-                    <Paper sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
+                  <Grid size={{ xs: 6, sm: 6 }}>
+                    <Paper sx={{
+                      p: { xs: 1.5, sm: 2 },
+                      textAlign: 'center',
                       bgcolor: statusColors.done.bg,
                       border: 'none',
                     }}>
-                      <Typography variant="h3" fontWeight={700} color={statusColors.done.main}>
+                      <Typography variant={{ xs: 'h4', sm: 'h3' }} fontWeight={700} color={statusColors.done.main}>
                         {stats.completedTasks}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         Выполнено
                       </Typography>
                     </Paper>
                   </Grid>
-                  <Grid size={6}>
-                    <Paper sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
+                  <Grid size={{ xs: 6, sm: 6 }}>
+                    <Paper sx={{
+                      p: { xs: 1.5, sm: 2 },
+                      textAlign: 'center',
                       bgcolor: statusColors.in_progress.bg,
                       border: 'none',
                     }}>
-                      <Typography variant="h3" fontWeight={700} color={statusColors.in_progress.main}>
+                      <Typography variant={{ xs: 'h4', sm: 'h3' }} fontWeight={700} color={statusColors.in_progress.main}>
                         {stats.activeTasks}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         В работе
                       </Typography>
                     </Paper>
                   </Grid>
-                  <Grid size={6}>
-                    <Paper sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
+                  <Grid size={{ xs: 6, sm: 6 }}>
+                    <Paper sx={{
+                      p: { xs: 1.5, sm: 2 },
+                      textAlign: 'center',
                       bgcolor: statusColors.overdue.bg,
                       border: 'none',
                     }}>
-                      <Typography variant="h3" fontWeight={700} color={statusColors.overdue.main}>
+                      <Typography variant={{ xs: 'h4', sm: 'h3' }} fontWeight={700} color={statusColors.overdue.main}>
                         {stats.overdueTasks}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         Просрочено
                       </Typography>
                     </Paper>
                   </Grid>
-                  <Grid size={6}>
-                    <Paper sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
+                  <Grid size={{ xs: 6, sm: 6 }}>
+                    <Paper sx={{
+                      p: { xs: 1.5, sm: 2 },
+                      textAlign: 'center',
                       bgcolor: isDark ? 'background.subtle' : 'grey.100',
                       border: 'none',
                     }}>
-                      <Typography variant="h3" fontWeight={700} color="text.primary">
+                      <Typography variant={{ xs: 'h4', sm: 'h3' }} fontWeight={700} color="text.primary">
                         {stats.teamsCount}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         Команд
                       </Typography>
                     </Paper>
