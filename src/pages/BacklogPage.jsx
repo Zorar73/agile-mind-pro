@@ -421,7 +421,13 @@ function BacklogPage() {
       {/* Панель фильтров */}
       <Card sx={{ mb: 3, borderRadius: 3 }}>
         <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 2,
+            flexWrap: 'wrap',
+            alignItems: { xs: 'stretch', sm: 'center' }
+          }}>
             {/* Поиск */}
             <TextField
               size="small"
@@ -431,11 +437,17 @@ function BacklogPage() {
               InputProps={{
                 startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />,
               }}
-              sx={{ minWidth: 200 }}
+              sx={{
+                minWidth: { xs: '100%', sm: 200 },
+                flex: { xs: '1', sm: '0 0 auto' }
+              }}
             />
 
             {/* Фильтр по доске */}
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl size="small" sx={{
+              minWidth: { xs: '100%', sm: 150 },
+              flex: { xs: '1', sm: '0 0 auto' }
+            }}>
               <InputLabel>Доска</InputLabel>
               <Select
                 value={filterBoard}
@@ -450,7 +462,10 @@ function BacklogPage() {
             </FormControl>
 
             {/* Фильтр по приоритету */}
-            <FormControl size="small" sx={{ minWidth: 140 }}>
+            <FormControl size="small" sx={{
+              minWidth: { xs: '100%', sm: 140 },
+              flex: { xs: '1', sm: '0 0 auto' }
+            }}>
               <InputLabel>Приоритет</InputLabel>
               <Select
                 value={filterPriority}
@@ -470,7 +485,10 @@ function BacklogPage() {
             </FormControl>
 
             {/* Фильтр по исполнителю */}
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl size="small" sx={{
+              minWidth: { xs: '100%', sm: 150 },
+              flex: { xs: '1', sm: '0 0 auto' }
+            }}>
               <InputLabel>Исполнитель</InputLabel>
               <Select
                 value={filterAssignee}
@@ -486,10 +504,13 @@ function BacklogPage() {
               </Select>
             </FormControl>
 
-            <Divider orientation="vertical" flexItem />
+            <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
 
             {/* Сортировка */}
-            <FormControl size="small" sx={{ minWidth: 140 }}>
+            <FormControl size="small" sx={{
+              minWidth: { xs: '100%', sm: 140 },
+              flex: { xs: '1', sm: '0 0 auto' }
+            }}>
               <InputLabel>Сортировка</InputLabel>
               <Select
                 value={sortBy}
@@ -507,6 +528,7 @@ function BacklogPage() {
               size="small"
               onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
               title={sortOrder === 'asc' ? 'По возрастанию' : 'По убыванию'}
+              sx={{ alignSelf: { xs: 'flex-end', sm: 'center' } }}
             >
               {sortOrder === 'asc' ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
             </IconButton>

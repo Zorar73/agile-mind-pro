@@ -133,8 +133,10 @@ function NewsPage() {
         sx={{
           mb: 5,
           display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: { xs: 2, sm: 0 },
           pb: 3,
           borderBottom: '3px solid',
           borderImage: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%) 1',
@@ -150,6 +152,7 @@ function NewsPage() {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
               mb: 0.5,
+              fontSize: { xs: '2rem', sm: '3rem' },
             }}
           >
             Новости

@@ -146,9 +146,9 @@ function RegisterPage() {
 
       <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
         <Card sx={{ borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
-          <CardContent sx={{ p: 4 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
             {/* Логотип */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: { xs: 2, sm: 4 } }}>
               <Box sx={{ 
                 display: 'inline-flex', 
                 alignItems: 'center', 

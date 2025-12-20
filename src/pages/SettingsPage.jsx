@@ -269,7 +269,7 @@ function SettingsPage() {
 
               {/* Детальные настройки Email */}
               <Collapse in={emailDetailsExpanded && settings.emailNotifications}>
-                <Box sx={{ pl: 7, pr: 2, pb: 2 }}>
+                <Box sx={{ pl: { xs: 2, sm: 7 }, pr: 2, pb: 2 }}>
                   <Typography variant="caption" color="text.secondary" gutterBottom display="block">
                     Выберите типы уведомлений:
                   </Typography>
@@ -436,9 +436,9 @@ function SettingsPage() {
                   <ListItemText
                     primary="Громкость звуков"
                     secondary={`${Math.round(settings.soundVolume * 100)}%`}
-                    sx={{ pl: 7 }}
+                    sx={{ pl: { xs: 2, sm: 7 } }}
                   />
-                  <ListItemSecondaryAction sx={{ width: 200, pr: 2 }}>
+                  <ListItemSecondaryAction sx={{ width: { xs: '100%', sm: 200 }, pr: 2, position: { xs: 'relative', sm: 'absolute' }, mt: { xs: 2, sm: 0 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <VolumeOff fontSize="small" />
                       <input
@@ -641,20 +641,25 @@ function SettingsPage() {
         </Card>
 
         {/* Кнопки */}
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <Button 
-            variant="outlined" 
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column-reverse', sm: 'row' },
+          gap: 2,
+          justifyContent: 'flex-end'
+        }}>
+          <Button
+            variant="outlined"
             onClick={handleReset}
-            sx={{ borderRadius: 50 }}
+            sx={{ borderRadius: 50, width: { xs: '100%', sm: 'auto' } }}
           >
             Сбросить
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleSave}
             disabled={!hasChanges}
             startIcon={<Check />}
-            sx={{ borderRadius: 50, px: 4 }}
+            sx={{ borderRadius: 50, px: 4, width: { xs: '100%', sm: 'auto' } }}
           >
             Сохранить
           </Button>

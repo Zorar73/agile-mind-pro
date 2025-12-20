@@ -276,12 +276,12 @@ function UsersPage() {
           <TableHead>
             <TableRow>
               <TableCell>Пользователь</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Должность</TableCell>
-              <TableCell>Ответственность</TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Email</TableCell>
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Должность</TableCell>
+              <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Ответственность</TableCell>
               <TableCell>Роль</TableCell>
-              <TableCell>Права</TableCell>
-              <TableCell>Дата регистрации</TableCell>
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Права</TableCell>
+              <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Дата регистрации</TableCell>
               <TableCell align="right">Действия</TableCell>
             </TableRow>
           </TableHead>
@@ -311,44 +311,44 @@ function UsersPage() {
                   }}
                 >
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+                      <Avatar
                         src={u.avatar?.startsWith('http') ? u.avatar : undefined}
-                        sx={{ bgcolor: 'primary.main' }}
+                        sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
                       >
                         {u.firstName?.charAt(0) || '?'}
                       </Avatar>
-                      <Box>
-                        <Typography variant="body2" fontWeight={500}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={500} noWrap>
                           {u.firstName} {u.middleName} {u.lastName}
                         </Typography>
                         {u.status === 'online' && (
-                          <Chip 
-                            label="Онлайн" 
-                            size="small" 
-                            sx={{ 
-                              height: 18, 
+                          <Chip
+                            label="Онлайн"
+                            size="small"
+                            sx={{
+                              height: 18,
                               fontSize: '0.65rem',
                               bgcolor: 'success.main',
                               color: 'white',
-                            }} 
+                            }}
                           />
                         )}
                       </Box>
                     </Box>
                   </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                    <Typography variant="body2" color="text.secondary" noWrap>
                       {u.email}
                     </Typography>
                   </TableCell>
-                  <TableCell>{u.position || '—'}</TableCell>
-                  <TableCell>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        maxWidth: 200, 
-                        overflow: 'hidden', 
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{u.position || '—'}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        maxWidth: 200,
+                        overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}
@@ -357,7 +357,7 @@ function UsersPage() {
                     </Typography>
                   </TableCell>
                   <TableCell>{getRoleChip(u.role)}</TableCell>
-                  <TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                     {u.role === 'admin' ? (
                       <Chip
                         label="Полный доступ"
@@ -387,7 +387,7 @@ function UsersPage() {
                       </Box>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                     {u.createdAt && format(
                       u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt),
                       'dd.MM.yyyy'
@@ -395,7 +395,12 @@ function UsersPage() {
                   </TableCell>
                   <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                     {u.role === 'pending' ? (
-                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Box sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: 1,
+                        justifyContent: 'flex-end'
+                      }}>
                         <Button
                           size="small"
                           variant="contained"
@@ -407,24 +412,26 @@ function UsersPage() {
                             setDialogType('approve');
                             setDialogOpen(true);
                           }}
-                          sx={{ borderRadius: 50 }}
+                          sx={{ borderRadius: 50, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                         >
-                          Одобрить
+                          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Одобрить</Box>
+                          <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>✓</Box>
                         </Button>
                         <Button
                           size="small"
                           variant="outlined"
                           color="error"
-                          startIcon={<Close />}
+                          startIcon={<Close sx={{ display: { xs: 'none', sm: 'inline' } }} />}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedUser(u);
                             setDialogType('reject');
                             setDialogOpen(true);
                           }}
-                          sx={{ borderRadius: 50 }}
+                          sx={{ borderRadius: 50, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                         >
-                          Отклонить
+                          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Отклонить</Box>
+                          <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>✕</Box>
                         </Button>
                       </Box>
                     ) : (
