@@ -124,14 +124,22 @@ function StackedDrawer({
       sx={{
         zIndex,
         '& .MuiDrawer-paper': {
-          width,
+          width: {
+            xs: '100%',      // Полная ширина на телефонах
+            sm: '90%',       // 90% на планшетах
+            md: width,       // Фиксированная ширина на десктопе
+          },
+          maxWidth: width,  // Максимальная ширина
           transform: `translateX(${offset}px)`,
           transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, box-shadow 0.3s ease',
           opacity,
           boxShadow: effectivePosition > 0
             ? '-8px 0 24px rgba(0,0,0,0.12), -4px 0 8px rgba(0,0,0,0.06)'
             : '0 0 48px rgba(0,0,0,0.1)',
-          borderRadius: '20px 0 0 20px',
+          borderRadius: {
+            xs: '0',         // Без скругления на телефонах
+            md: '20px 0 0 20px',  // Скругление на десктопе
+          },
           cursor: !effectiveIsTop ? 'pointer' : 'default',
           border: '1px solid',
           borderColor: 'divider',

@@ -58,6 +58,7 @@ import { ru } from 'date-fns/locale';
 import { UserContext } from '../App';
 import MainLayout from '../components/Layout/MainLayout';
 import boardService from '../services/board.service';
+import { useToast } from '../contexts/ToastContext';
 import taskService from '../services/task.service';
 import userService from '../services/user.service';
 
@@ -73,6 +74,7 @@ const bauhaus = {
 function BoardsPage() {
   const { user } = useContext(UserContext);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [boards, setBoards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -175,8 +177,11 @@ function BoardsPage() {
     event.stopPropagation();
     const result = await boardService.requestBoardAccess(boardId, user.uid);
     if (result.success) {
+      toast.success('Вы успешно присоединились к доске!');
       // Перезагружаем доски
       loadBoards();
+    } else {
+      toast.error(result.error || 'Не удалось присоединиться к доске');
     }
   };
 

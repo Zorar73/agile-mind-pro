@@ -273,7 +273,16 @@ function DashboardPage() {
         gap: 2
       }}>
         {widgets.map(widget => (
-          <Box key={widget.id} sx={{ gridColumn: `span ${widget.width}` }}>
+          <Box
+            key={widget.id}
+            sx={{
+              gridColumn: {
+                xs: 'span 1',  // Всегда 1 колонка на телефонах
+                sm: `span ${Math.min(widget.width, 2)}`,  // Максимум 2 на планшетах
+                md: `span ${widget.width}`,  // Полная ширина на десктопе
+              }
+            }}
+          >
             {renderWidget(widget)}
           </Box>
         ))}
