@@ -195,12 +195,13 @@ function SettingsPage() {
                 <ListItemIcon>
                   {settings.theme === 'dark' ? <DarkMode /> : <LightMode />}
                 </ListItemIcon>
-                <ListItemText 
-                  primary="Тема оформления" 
+                <ListItemText
+                  primary="Тема оформления"
                   secondary="Выберите светлую, тёмную или системную тему"
+                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
                     <Select
                       value={settings.theme}
                       onChange={(e) => handleSettingChange('theme', e.target.value)}
@@ -212,13 +213,14 @@ function SettingsPage() {
                   </FormControl>
                 </ListItemSecondaryAction>
               </ListItem>
-              
+
               <Divider component="li" />
-              
+
               <ListItem>
-                <ListItemText 
-                  primary="Компактный режим" 
+                <ListItemText
+                  primary="Компактный режим"
                   secondary="Уменьшенные отступы для большей информации на экране"
+                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
                 <ListItemSecondaryAction>
                   <Switch
@@ -248,6 +250,7 @@ function SettingsPage() {
                 <ListItemText
                   primary="Email уведомления"
                   secondary="Получать уведомления на почту"
+                  sx={{ pr: { xs: 12, sm: 14 } }}
                 />
                 <ListItemSecondaryAction>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -372,6 +375,7 @@ function SettingsPage() {
                         : "Требуется разрешение браузера"
                       : "Не поддерживается браузером"
                   }
+                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
                 <ListItemSecondaryAction>
                   <Switch
@@ -381,14 +385,15 @@ function SettingsPage() {
                   />
                 </ListItemSecondaryAction>
               </ListItem>
-              
+
               <Divider component="li" />
-              
+
               <ListItem>
                 <ListItemIcon><Assignment /></ListItemIcon>
-                <ListItemText 
-                  primary="Напоминания о задачах" 
+                <ListItemText
+                  primary="Напоминания о задачах"
                   secondary="Напоминать о приближающихся дедлайнах"
+                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
                 <ListItemSecondaryAction>
                   <Switch
@@ -397,14 +402,15 @@ function SettingsPage() {
                   />
                 </ListItemSecondaryAction>
               </ListItem>
-              
+
               <Divider component="li" />
-              
+
               <ListItem>
                 <ListItemIcon><Email /></ListItemIcon>
                 <ListItemText
                   primary="Еженедельный дайджест"
                   secondary="Сводка активности за неделю"
+                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
                 <ListItemSecondaryAction>
                   <Switch
@@ -421,6 +427,7 @@ function SettingsPage() {
                 <ListItemText
                   primary="Звуковые уведомления"
                   secondary="Воспроизводить звук при получении уведомлений"
+                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
                 <ListItemSecondaryAction>
                   <Switch
@@ -435,7 +442,7 @@ function SettingsPage() {
                   <ListItemText
                     primary="Громкость звуков"
                     secondary={`${Math.round(settings.soundVolume * 100)}%`}
-                    sx={{ pl: { xs: 2, sm: 7 } }}
+                    sx={{ pl: { xs: 2, sm: 7 }, pr: { xs: 8, sm: 10 } }}
                   />
                   <ListItemSecondaryAction sx={{ width: { xs: '100%', sm: 200 }, pr: 2, position: { xs: 'relative', sm: 'absolute' }, mt: { xs: 2, sm: 0 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -470,12 +477,13 @@ function SettingsPage() {
             <List>
               <ListItem>
                 <ListItemIcon><ViewKanban /></ListItemIcon>
-                <ListItemText 
-                  primary="Вид по умолчанию" 
+                <ListItemText
+                  primary="Вид по умолчанию"
                   secondary="При открытии списка задач"
+                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
                     <Select
                       value={settings.defaultTaskView}
                       onChange={(e) => handleSettingChange('defaultTaskView', e.target.value)}
@@ -492,12 +500,13 @@ function SettingsPage() {
               <Divider component="li" />
               
               <ListItem>
-                <ListItemText 
-                  primary="Приоритет по умолчанию" 
+                <ListItemText
+                  primary="Приоритет по умолчанию"
                   secondary="Для новых задач"
+                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
                     <Select
                       value={settings.defaultPriority}
                       onChange={(e) => handleSettingChange('defaultPriority', e.target.value)}
@@ -515,12 +524,13 @@ function SettingsPage() {
               
               <ListItem>
                 <ListItemIcon><Storage /></ListItemIcon>
-                <ListItemText 
-                  primary="Автоархивация" 
+                <ListItemText
+                  primary="Автоархивация"
                   secondary="Архивировать выполненные задачи через N дней (0 = отключено)"
+                  sx={{ pr: { xs: 16, sm: 18 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 90, sm: 100 } }}>
                     <Select
                       value={settings.autoArchiveDays}
                       onChange={(e) => handleSettingChange('autoArchiveDays', e.target.value)}
@@ -538,9 +548,10 @@ function SettingsPage() {
               <Divider component="li" />
               
               <ListItem>
-                <ListItemText 
-                  primary="Показывать выполненные" 
+                <ListItemText
+                  primary="Показывать выполненные"
                   secondary="Отображать завершённые задачи в списках"
+                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
                 <ListItemSecondaryAction>
                   <Switch
@@ -565,12 +576,13 @@ function SettingsPage() {
             
             <List>
               <ListItem>
-                <ListItemText 
-                  primary="Начало недели" 
+                <ListItemText
+                  primary="Начало недели"
                   secondary="Первый день недели в календаре"
+                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
                     <Select
                       value={settings.calendarStartDay}
                       onChange={(e) => handleSettingChange('calendarStartDay', e.target.value)}
@@ -585,12 +597,13 @@ function SettingsPage() {
               <Divider component="li" />
               
               <ListItem>
-                <ListItemText 
-                  primary="Масштаб по умолчанию" 
+                <ListItemText
+                  primary="Масштаб по умолчанию"
                   secondary="При открытии календаря"
+                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
                     <Select
                       value={settings.defaultCalendarView}
                       onChange={(e) => handleSettingChange('defaultCalendarView', e.target.value)}
@@ -619,12 +632,13 @@ function SettingsPage() {
             
             <List>
               <ListItem>
-                <ListItemText 
-                  primary="Язык интерфейса" 
+                <ListItemText
+                  primary="Язык интерфейса"
                   secondary="Выберите язык приложения"
+                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
                 <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
                     <Select
                       value={settings.language}
                       onChange={(e) => handleSettingChange('language', e.target.value)}

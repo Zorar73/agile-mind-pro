@@ -26,7 +26,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const BacklogPage = lazy(() => import('./pages/BacklogPage'));
 const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage'));
 const CloudinaryTestPage = lazy(() => import('./pages/CloudinaryTestPage'));
-const SprintPlanning = lazy(() => import('./components/Sprint/SprintPlanning'));
+const SprintsPage = lazy(() => import('./pages/SprintsPage'));
 
 const UserContext = createContext();
 
@@ -96,7 +96,7 @@ function App() {
               <Route path="/board/:boardId/backlog" element={<ProtectedRoute><BacklogPage /></ProtectedRoute>} />
 
               {/* Спринты доски */}
-              <Route path="/board/:boardId/sprints" element={<ProtectedRoute><SprintPlanning /></ProtectedRoute>} />
+              <Route path="/board/:boardId/sprints" element={<ProtectedRoute><SprintsPage /></ProtectedRoute>} />
 
               {/* Остальные роуты */}
               <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
