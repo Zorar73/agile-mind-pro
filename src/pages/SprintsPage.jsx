@@ -42,7 +42,7 @@ function SprintsPage() {
     setLoading(true);
 
     // Загружаем доску
-    const boardResult = await boardService.getBoardById(boardId);
+    const boardResult = await boardService.getBoard(boardId);
     if (!boardResult.success) {
       toast.error('Не удалось загрузить доску');
       setLoading(false);
