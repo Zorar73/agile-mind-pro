@@ -28,6 +28,7 @@ const BacklogPage = lazy(() => import('./pages/BacklogPage'));
 const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage'));
 const CloudinaryTestPage = lazy(() => import('./pages/CloudinaryTestPage'));
 const SprintsPage = lazy(() => import('./pages/SprintsPage'));
+const LearningPortalPage = lazy(() => import('./pages/LearningPortalPage'));
 
 const UserContext = createContext();
 
@@ -137,6 +138,7 @@ function App() {
               <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/learning" element={<ProtectedRoute><LearningPortalPage /></ProtectedRoute>} />
               <Route path="/cloudinary-test" element={<ProtectedRoute><CloudinaryTestPage /></ProtectedRoute>} />
                   </Routes>
                 </Suspense>
