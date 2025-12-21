@@ -83,17 +83,18 @@ function StatsWidget({ widget, stats, isEditMode, onRemove, onOpenConfig, onResi
       onClick={() => onNavigate?.('/my-tasks')}
       sx={{
         bgcolor: item.color,
-        flex: 1,
+        flex: { xs: '1 1 100%', sm: 1 },
+        minWidth: { xs: 0, sm: 100 },
         cursor: 'pointer',
         '&:hover': { transform: 'translateY(-2px)' },
         transition: 'transform 0.2s',
       }}
     >
-      <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Typography variant="h4" fontWeight={700} color="white">
+      <CardContent sx={{ py: { xs: 1, sm: 1.5 }, px: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1, sm: 1.5 } } }}>
+        <Typography variant="h4" fontWeight={700} color="white" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
           {getValue(item.key)}{item.isPercent ? '%' : ''}
         </Typography>
-        <Typography variant="caption" color="white" sx={{ opacity: 0.9 }}>
+        <Typography variant="caption" color="white" sx={{ opacity: 0.9, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
           {item.label}
         </Typography>
       </CardContent>
@@ -178,7 +179,12 @@ function StatsWidget({ widget, stats, isEditMode, onRemove, onOpenConfig, onResi
         <MiniStat item={displayItems[0] || STAT_ITEMS[0]} />
       ) : (
         <Box>
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 1.5,
+            flexWrap: 'wrap',
+          }}>
             {displayItems.map(item => (
               <CompactStat key={item.key} item={item} />
             ))}

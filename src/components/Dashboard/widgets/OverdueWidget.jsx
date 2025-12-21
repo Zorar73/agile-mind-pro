@@ -76,23 +76,29 @@ function OverdueWidget({ widget, tasks, users, isEditMode, onRemove, onOpenConfi
                   '&:hover': { boxShadow: 2 },
                 }}
               >
-                <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <CardContent sx={{ py: 1, px: { xs: 1, sm: 2 }, '&:last-child': { pb: 1 } }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: { xs: 0.5, sm: 1 } }}>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="body2" fontWeight={600} noWrap>{task.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">{task.boardTitle}</Typography>
+                      <Typography variant="body2" fontWeight={600} noWrap sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>{task.title}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{task.boardTitle}</Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, ml: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
                       {assignee && (
-                        <Avatar src={assignee.avatar} sx={{ width: 24, height: 24 }}>
+                        <Avatar src={assignee.avatar} sx={{ width: { xs: 20, sm: 24 }, height: { xs: 20, sm: 24 }, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>
                           {assignee.firstName?.charAt(0)}
                         </Avatar>
                       )}
                       <Chip
-                        icon={<Warning sx={{ fontSize: 14 }} />}
+                        icon={<Warning sx={{ fontSize: { xs: 12, sm: 14 } }} />}
                         label={daysOverdue}
                         size="small"
-                        sx={{ bgcolor: `${bauhaus.red}15`, color: bauhaus.red }}
+                        sx={{
+                          bgcolor: `${bauhaus.red}15`,
+                          color: bauhaus.red,
+                          height: { xs: 20, sm: 24 },
+                          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                          '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } }
+                        }}
                       />
                     </Box>
                   </Box>

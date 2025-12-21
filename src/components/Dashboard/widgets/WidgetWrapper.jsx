@@ -23,7 +23,11 @@ function WidgetWrapper({
   return (
     <Paper
       sx={{
-        gridColumn: `span ${widget.width}`,
+        gridColumn: {
+          xs: 'span 1',
+          sm: `span ${Math.min(widget.width, 2)}`,
+          md: `span ${widget.width}`,
+        },
         p: 2,
         borderRadius: 3,
         position: 'relative',
@@ -34,6 +38,7 @@ function WidgetWrapper({
         transition: 'box-shadow 0.2s, transform 0.2s',
         '&:hover': isEditMode ? { boxShadow: 6, transform: 'scale(1.01)' } : {},
         overflow: 'hidden',
+        maxWidth: '100%',
       }}
     >
       {/* Edit mode controls */}

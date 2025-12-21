@@ -155,7 +155,7 @@ function CoursePage() {
               {course.description}
             </Typography>
 
-            <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+            <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
               {course.duration && (
                 <Chip icon={<Timer />} label={course.duration} />
               )}
@@ -237,7 +237,7 @@ function CoursePage() {
                           </Typography>
                         }
                         secondary={
-                          <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                          <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
                             {lesson.type === 'video' ? (
                               <Chip
                                 icon={<PlayCircleOutline />}
@@ -316,7 +316,7 @@ function CoursePage() {
                         </ListItemIcon>
                         <ListItemText
                           primary={
-                            <Stack direction="row" spacing={1} alignItems="center">
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
                               <Typography variant="subtitle1" fontWeight={600}>
                                 {exam.title}
                               </Typography>
@@ -355,7 +355,7 @@ function CoursePage() {
                                   {exam.description}
                                 </Typography>
                               )}
-                              <Stack direction="row" spacing={1}>
+                              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                                 <Chip
                                   label={`${exam.questions?.length || 0} вопросов`}
                                   size="small"

@@ -130,7 +130,14 @@ function LearningPortalPage() {
         }}
       >
         <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', md: 'center' },
+            gap: 3,
+            mb: 3
+          }}>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                 <School sx={{ fontSize: 40, color: bauhaus.blue }} />
@@ -142,11 +149,16 @@ function LearningPortalPage() {
                 Освойте Agile Mind Pro. {stats.totalCourses} курсов доступно.
               </Typography>
             </Box>
-            <Stack direction="row" spacing={2}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ width: { xs: '100%', md: 'auto' } }}
+            >
               <Button
                 variant="outlined"
                 startIcon={<BarChart />}
                 onClick={() => navigate('/learning/stats')}
+                fullWidth
                 sx={{ borderRadius: 2 }}
               >
                 Моя статистика
@@ -156,6 +168,7 @@ function LearningPortalPage() {
                   variant="contained"
                   startIcon={<Add />}
                   onClick={() => navigate('/learning/admin')}
+                  fullWidth
                   sx={{
                     borderRadius: 2,
                     background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
@@ -168,7 +181,8 @@ function LearningPortalPage() {
           </Box>
 
           {/* Stats */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Box sx={{ overflow: 'hidden', width: '100%' }}>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={4}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
@@ -206,6 +220,7 @@ function LearningPortalPage() {
               </Card>
             </Grid>
           </Grid>
+          </Box>
 
           {/* Search */}
           <TextField
@@ -276,8 +291,9 @@ function LearningPortalPage() {
             )}
           </Card>
         ) : (
-          <Grid container spacing={3}>
-            {filteredCourses.map((course) => {
+          <Box sx={{ overflow: 'hidden', width: '100%' }}>
+            <Grid container spacing={3}>
+              {filteredCourses.map((course) => {
               const progress = course.userProgress?.progress || 0;
               const isCompleted = progress === 100;
               const isStarted = progress > 0;
@@ -410,7 +426,8 @@ function LearningPortalPage() {
                 </Grid>
               );
             })}
-          </Grid>
+            </Grid>
+          </Box>
         )}
       </Container>
     </MainLayout>

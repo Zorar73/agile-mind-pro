@@ -199,7 +199,7 @@ function ExamResultsReviewPage() {
           </CardContent>
         </Card>
 
-        <TableContainer component={Paper}>
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>

@@ -146,7 +146,7 @@ function LessonPage() {
         {/* Lesson Header */}
         <Card sx={{ mb: 4, borderRadius: 3 }}>
           <CardContent sx={{ p: 4 }}>
-            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
               {course && (
                 <Chip label={course.title} size="small" sx={{ bgcolor: `${bauhaus.blue}15`, color: bauhaus.blue }} />
               )}
@@ -307,15 +307,21 @@ function LessonPage() {
         )}
 
         {/* Actions */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 2,
+          mb: 4
+        }}>
           {!isCompleted && (
             <Button
               variant="contained"
               size="large"
               startIcon={<CheckCircle />}
               onClick={handleMarkComplete}
+              fullWidth
               sx={{
-                flex: 1,
+                flex: { sm: 1 },
                 borderRadius: 2,
                 py: 1.5,
                 background: `linear-gradient(135deg, ${bauhaus.teal} 0%, ${bauhaus.blue} 100%)`,
@@ -330,8 +336,9 @@ function LessonPage() {
             size="large"
             endIcon={<ArrowForward />}
             onClick={handleNextLesson}
+            fullWidth
             sx={{
-              flex: 1,
+              flex: { sm: 1 },
               borderRadius: 2,
               py: 1.5,
               ...(isCompleted && {

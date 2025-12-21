@@ -290,7 +290,7 @@ function UsersPage() {
       />
 
       {/* Таблица */}
-      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+      <TableContainer component={Paper} sx={{ borderRadius: 2, overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>

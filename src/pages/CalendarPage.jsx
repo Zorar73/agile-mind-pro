@@ -693,7 +693,11 @@ function CalendarPage() {
     const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
 
     return (
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' },
+        gap: 2,
+      }}>
         {months.map(month => {
           const monthTasks = filteredTasks.filter(task => {
             const taskDate = new Date(task.dueDate);
@@ -728,7 +732,11 @@ function CalendarPage() {
     const months = eachMonthOfInterval({ start: quarterStart, end: quarterEnd });
 
     return (
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+        gap: 2,
+      }}>
         {months.map(month => {
           const monthTasks = filteredTasks.filter(task => {
             const taskDate = new Date(task.dueDate);
@@ -768,18 +776,28 @@ function CalendarPage() {
     let day = startDate;
 
     rows.push(
-      <Box key="header" sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5, mb: 0.5 }}>
+      <Box key="header" sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: { xs: 0.25, sm: 0.5 },
+        mb: 0.5,
+      }}>
         {days.map((dayName, index) => (
-          <Box 
-            key={dayName} 
-            sx={{ 
-              textAlign: 'center', 
-              py: 1,
+          <Box
+            key={dayName}
+            sx={{
+              textAlign: 'center',
+              py: { xs: 0.5, sm: 1 },
               bgcolor: index >= 5 ? 'error.lighter' : 'transparent',
               borderRadius: 1,
             }}
           >
-            <Typography variant="body2" fontWeight={600} color={index >= 5 ? 'error.main' : 'text.secondary'}>
+            <Typography
+              variant="body2"
+              fontWeight={600}
+              color={index >= 5 ? 'error.main' : 'text.secondary'}
+              sx={{ fontSize: { xs: '0.65rem', sm: '0.875rem' } }}
+            >
               {dayName}
             </Typography>
           </Box>
@@ -811,7 +829,12 @@ function CalendarPage() {
       }
       
       rows.push(
-        <Box key={day.toISOString()} sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5, mb: 0.5 }}>
+        <Box key={day.toISOString()} sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: { xs: 0.25, sm: 0.5 },
+          mb: 0.5,
+        }}>
           {weekDays}
         </Box>
       );
@@ -826,7 +849,11 @@ function CalendarPage() {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     return (
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: { xs: 0.5, sm: 1 },
+      }}>
         {days.map(day => {
           const dayTasks = getTasksForDate(day);
           return (

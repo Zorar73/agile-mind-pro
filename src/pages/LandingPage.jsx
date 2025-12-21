@@ -226,19 +226,39 @@ const InteractiveDashboardDemo = () => {
       </Stack>
 
       {activeTab === 'kanban' && (
-        <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, width: '100%' }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+          overflowX: { xs: 'visible', md: 'auto' },
+          pb: 1,
+          width: '100%',
+        }}>
           {[
             { title: 'To Do', color: '#9E9E9E', tasks: ['Дизайн макета', 'Документация'] },
             { title: 'In Progress', color: colors.primary, tasks: ['API разработка'] },
             { title: 'Review', color: colors.warning, tasks: ['Тестирование'] },
             { title: 'Done', color: colors.success, tasks: ['Аутентификация', 'База данных'] },
           ].map((col, i) => (
-            <Box key={i} sx={{ flex: '1 1 0', minWidth: 120 }}>
-              <Box sx={{ bgcolor: alpha(colors.white, 0.05), borderRadius: 2, p: 1.5, borderTop: `3px solid ${col.color}`, height: '100%' }}>
+            <Box key={i} sx={{
+              flex: { xs: '1', md: '1 1 0' },
+              minWidth: { xs: '100%', md: 120 },
+            }}>
+              <Box sx={{ bgcolor: alpha(colors.white, 0.05), borderRadius: 2, p: 1.5, borderTop: `3px solid ${col.color}`, height: '100%', overflow: 'hidden' }}>
                 <Typography variant="caption" color={alpha(colors.white, 0.7)} fontWeight={600}>{col.title}</Typography>
                 <Stack spacing={1} mt={1}>
                   {col.tasks.map((task, j) => (
-                    <Paper key={j} sx={{ p: 1, bgcolor: alpha(colors.white, 0.08), borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: alpha(colors.white, 0.12), transform: 'translateX(4px)' }, transition: 'all 0.2s' }}>
+                    <Paper key={j} sx={{
+                      p: 1,
+                      bgcolor: alpha(colors.white, 0.08),
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: alpha(colors.white, 0.12),
+                        transform: { xs: 'none', md: 'translateX(4px)' }
+                      },
+                      transition: 'all 0.2s'
+                    }}>
                       <Typography variant="caption" color={colors.white}>{task}</Typography>
                     </Paper>
                   ))}
@@ -404,7 +424,7 @@ const HeroSection = ({ navigate }) => {
                       borderRadius: 2,
                       background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
                       boxShadow: `0 8px 32px ${alpha(colors.primary, 0.4)}`,
-                      '&:hover': { background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.secondaryDark} 100%)`, transform: 'translateY(-2px)', boxShadow: `0 12px 40px ${alpha(colors.primary, 0.5)}` },
+                      '&:hover': { background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.secondaryDark} 100%)`, transform: { xs: 'none', md: 'translateY(-2px)' }, boxShadow: `0 12px 40px ${alpha(colors.primary, 0.5)}` },
                       transition: 'all 0.3s ease',
                     }}
                   >
@@ -450,7 +470,7 @@ const HeroSection = ({ navigate }) => {
                     overflow: 'hidden',
                     bgcolor: colors.darkGray,
                     border: `1px solid ${alpha(colors.white, 0.1)}`,
-                    animation: `${float} 6s ease-in-out infinite`,
+                    animation: { xs: 'none', md: `${float} 6s ease-in-out infinite` },
                   }}
                 >
                   <Box sx={{ p: 1.5, bgcolor: alpha(colors.white, 0.05), display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1163,11 +1183,11 @@ const PricingSection = ({ navigate }) => {
       </Container>
 
       {/* Scrollable on mobile, grid on desktop */}
-      <Box sx={{ 
+      <Box sx={{
         display: { xs: 'flex', md: 'none' },
         gap: 2,
-        pl: { xs: 2, sm: 4 },
-        pr: { xs: 2, sm: 4 },
+        pl: { xs: 1.5, sm: 2, md: 4 },
+        pr: { xs: 1.5, sm: 2, md: 4 },
         pb: 2,
         overflowX: 'auto',
         scrollSnapType: 'x mandatory',
@@ -1175,8 +1195,8 @@ const PricingSection = ({ navigate }) => {
       }}>
         {plans.map((plan, index) => (
           <Card key={index} sx={{
-            minWidth: 260,
-            maxWidth: 280,
+            minWidth: { xs: 240, sm: 260 },
+            maxWidth: { xs: 260, sm: 280 },
             p: 2.5,
             borderRadius: 3,
             position: 'relative',
@@ -1257,9 +1277,9 @@ const PricingSection = ({ navigate }) => {
 
       {/* Desktop grid */}
       <Container maxWidth="lg" sx={{ display: { xs: 'none', md: 'block' } }}>
-        <Box sx={{ 
+        <Box sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: { md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
           gap: 3,
           alignItems: 'stretch',
         }}>
@@ -1444,7 +1464,7 @@ const TestimonialsSection = () => {
               transition: 'all 0.2s',
               '&:hover': {
                 borderColor: colors.primary,
-                transform: 'translateY(-4px)',
+                transform: { xs: 'none', md: 'translateY(-4px)' },
                 boxShadow: `0 12px 24px ${alpha(colors.primary, 0.1)}`,
               },
             }}

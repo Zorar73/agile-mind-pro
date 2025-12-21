@@ -304,7 +304,7 @@ function MyTasksPage() {
     };
 
     return (
-      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+      <TableContainer component={Paper} sx={{ borderRadius: 2, overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'grey.50' }}>
@@ -370,9 +370,21 @@ function MyTasksPage() {
     const sg = { todo: { title: 'К выполнению', color: bauhaus.blue }, in_progress: { title: 'В работе', color: bauhaus.yellow }, done: { title: 'Готово', color: bauhaus.teal } };
     const kg = { todo: filteredAndSortedTasks.filter(t => t.status === 'todo' || !t.status), in_progress: filteredAndSortedTasks.filter(t => t.status === 'in_progress'), done: filteredAndSortedTasks.filter(t => t.status === 'done') };
     return (
-      <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
+        gap: 2,
+        overflowX: { xs: 'visible', md: 'auto' },
+        pb: 2,
+      }}>
         {Object.entries(sg).map(([s, c]) => (
-          <Paper key={s} sx={{ minWidth: 300, flex: '0 0 300px', bgcolor: 'grey.50', borderRadius: 2, p: 2 }}>
+          <Paper key={s} sx={{
+            minWidth: { xs: '100%', md: 300 },
+            flex: { xs: '1', md: '0 0 300px' },
+            bgcolor: 'grey.50',
+            borderRadius: 2,
+            p: 2,
+          }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c.color }} /><Typography variant="subtitle1" fontWeight="600">{c.title}</Typography><Chip label={kg[s].length} size="small" sx={{ ml: 'auto' }} /></Box>
             <Stack spacing={1.5}>{kg[s].map(t => renderTaskCard(t))}</Stack>
           </Paper>

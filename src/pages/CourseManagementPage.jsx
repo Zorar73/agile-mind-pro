@@ -110,12 +110,17 @@ function CourseManagementPage() {
             Все курсы
           </Button>
 
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            spacing={2}
+          >
             <Box>
               <Typography variant="h4" fontWeight={800} gutterBottom>
                 {course.title}
               </Typography>
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
                 <Chip label={course.category} size="small" color="primary" variant="outlined" />
                 {course.duration && <Chip label={`${course.duration} часов`} size="small" variant="outlined" />}
               </Stack>

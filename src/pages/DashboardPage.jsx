@@ -236,19 +236,55 @@ function DashboardPage() {
   return (
     <MainLayout>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', md: 'center' },
+        gap: 2,
+        mb: 3
+      }}>
         <Box>
           <Typography variant="h4" fontWeight={700} gutterBottom>Добро пожаловать, {user?.firstName}!</Typography>
           <Typography variant="body1" color="text.secondary">Управляйте проектами и задачами эффективно</Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 1,
+          width: { xs: '100%', sm: 'auto' }
+        }}>
           {isEditMode && (
             <>
-              <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={handleResetToDefault} sx={{ borderRadius: 50 }}>По умолчанию</Button>
-              <Button variant="outlined" size="small" startIcon={<Add />} onClick={(e) => setAddMenuAnchor(e.currentTarget)} sx={{ borderRadius: 50 }}>Виджет</Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Refresh />}
+                onClick={handleResetToDefault}
+                sx={{ borderRadius: 50 }}
+                fullWidth={theme.breakpoints.down('sm')}
+              >
+                По умолчанию
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Add />}
+                onClick={(e) => setAddMenuAnchor(e.currentTarget)}
+                sx={{ borderRadius: 50 }}
+                fullWidth={theme.breakpoints.down('sm')}
+              >
+                Виджет
+              </Button>
             </>
           )}
-          <Button variant={isEditMode ? 'contained' : 'outlined'} startIcon={isEditMode ? <CheckCircle /> : <Settings />} onClick={() => setIsEditMode(!isEditMode)} sx={{ borderRadius: 50 }}>
+          <Button
+            variant={isEditMode ? 'contained' : 'outlined'}
+            startIcon={isEditMode ? <CheckCircle /> : <Settings />}
+            onClick={() => setIsEditMode(!isEditMode)}
+            sx={{ borderRadius: 50 }}
+            fullWidth={theme.breakpoints.down('sm')}
+          >
             {isEditMode ? 'Готово' : 'Настроить'}
           </Button>
         </Box>
@@ -256,9 +292,42 @@ function DashboardPage() {
 
       {/* Quick actions */}
       {!isEditMode && (
-        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <Button variant="outlined" startIcon={<Add />} onClick={() => setQuickCreateType('board')} sx={{ borderWidth: 2, borderColor: bauhaus.blue, color: bauhaus.blue, borderRadius: 50, '&:hover': { borderWidth: 2 } }}>Новая доска</Button>
-          <Button variant="outlined" startIcon={<Lightbulb />} onClick={() => setQuickCreateType('sketch')} sx={{ borderWidth: 2, borderColor: bauhaus.yellow, color: '#B8860B', borderRadius: 50, '&:hover': { borderWidth: 2 } }}>Новый набросок</Button>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 2,
+          mb: 3
+        }}>
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setQuickCreateType('board')}
+            fullWidth
+            sx={{
+              borderWidth: 2,
+              borderColor: bauhaus.blue,
+              color: bauhaus.blue,
+              borderRadius: 50,
+              '&:hover': { borderWidth: 2 }
+            }}
+          >
+            Новая доска
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Lightbulb />}
+            onClick={() => setQuickCreateType('sketch')}
+            fullWidth
+            sx={{
+              borderWidth: 2,
+              borderColor: bauhaus.yellow,
+              color: '#B8860B',
+              borderRadius: 50,
+              '&:hover': { borderWidth: 2 }
+            }}
+          >
+            Новый набросок
+          </Button>
         </Box>
       )}
 
@@ -270,7 +339,9 @@ function DashboardPage() {
           sm: 'repeat(2, 1fr)', // 2 колонки на планшетах (600-900px)
           md: 'repeat(4, 1fr)', // 4 колонки на десктопе (> 900px)
         },
-        gap: 2
+        gap: 2,
+        maxWidth: '100%',
+        overflow: 'hidden',
       }}>
         {widgets.map(widget => (
           <Box

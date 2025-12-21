@@ -576,7 +576,7 @@ function BoardsPage() {
           placeholder="Поиск досок..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ minWidth: 250 }}
+          sx={{ minWidth: { xs: 150, sm: 250 }, width: { xs: '100%', sm: 'auto' } }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -852,7 +852,7 @@ function BoardsPage() {
                           size="small"
                           value={role}
                           onChange={(e) => handleChangeMemberRole(memberId, e.target.value)}
-                          sx={{ minWidth: 120 }}
+                          sx={{ minWidth: { xs: 100, sm: 120 } }}
                         >
                           <MenuItem value="admin">Админ</MenuItem>
                           <MenuItem value="editor">Редактор</MenuItem>

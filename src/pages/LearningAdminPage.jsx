@@ -178,7 +178,13 @@ function LearningAdminPage() {
             Вернуться к курсам
           </Button>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', md: 'center' },
+            gap: 2
+          }}>
             <Box>
               <Typography variant="h4" fontWeight={800} gutterBottom>
                 Управление курсами
@@ -187,11 +193,16 @@ function LearningAdminPage() {
                 Создавайте и редактируйте обучающие курсы
               </Typography>
             </Box>
-            <Stack direction="row" spacing={2}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ width: { xs: '100%', md: 'auto' } }}
+            >
               <Button
                 variant="outlined"
                 startIcon={<Category />}
                 onClick={() => navigate('/learning/admin/categories')}
+                fullWidth
                 sx={{ borderRadius: 2 }}
               >
                 Категории
@@ -201,6 +212,7 @@ function LearningAdminPage() {
                   variant="contained"
                   startIcon={<Add />}
                   onClick={() => handleOpenDialog()}
+                  fullWidth
                   sx={{
                     borderRadius: 2,
                     background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
@@ -231,7 +243,8 @@ function LearningAdminPage() {
             )}
           </Card>
         ) : (
-          <Grid container spacing={3}>
+          <Box sx={{ overflow: 'hidden', width: '100%' }}>
+            <Grid container spacing={3}>
             {courses.map((course) => (
               <Grid item xs={12} md={6} key={course.id}>
                 <Card
@@ -246,7 +259,14 @@ function LearningAdminPage() {
                   }}
                 >
                   <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{
+                      display: 'flex',
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      justifyContent: 'space-between',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                      gap: 1,
+                      mb: 2
+                    }}>
                       <Typography variant="h6" fontWeight={700}>
                         {course.title}
                       </Typography>
@@ -303,6 +323,7 @@ function LearningAdminPage() {
               </Grid>
             ))}
           </Grid>
+          </Box>
         )}
 
         {/* Create/Edit Dialog */}

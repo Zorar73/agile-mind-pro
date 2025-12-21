@@ -126,7 +126,8 @@ function CourseStatsPage() {
         </Box>
 
         {/* Overall Statistics */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Box sx={{ overflow: 'hidden', width: '100%' }}>
+          <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
@@ -183,6 +184,7 @@ function CourseStatsPage() {
             </Card>
           </Grid>
         </Grid>
+        </Box>
 
         {/* Top Students */}
         {statistics.userProgressList.length > 0 && (
@@ -193,7 +195,7 @@ function CourseStatsPage() {
 
             <Card sx={{ mb: 4, borderRadius: 3 }}>
               <CardContent sx={{ p: 3 }}>
-                <TableContainer>
+                <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table>
                     <TableHead>
                       <TableRow>
@@ -311,7 +313,8 @@ function CourseStatsPage() {
               Статистика по экзаменам
             </Typography>
 
-            <Grid container spacing={3}>
+            <Box sx={{ overflow: 'hidden', width: '100%' }}>
+              <Grid container spacing={3}>
               {statistics.examStats.map((examStat) => (
                 <Grid item xs={12} md={6} key={examStat.examId}>
                   <Card sx={{ borderRadius: 3 }}>
@@ -390,6 +393,7 @@ function CourseStatsPage() {
                 </Grid>
               ))}
             </Grid>
+            </Box>
           </>
         )}
 

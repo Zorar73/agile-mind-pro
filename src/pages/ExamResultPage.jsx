@@ -182,7 +182,8 @@ function ExamResultPage() {
         </Card>
 
         {/* Stats */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Box sx={{ overflow: 'hidden', width: '100%' }}>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={3}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
@@ -225,6 +226,7 @@ function ExamResultPage() {
             </Paper>
           </Grid>
         </Grid>
+        </Box>
 
         {/* Detailed Results */}
         {!isPending && (
@@ -252,45 +254,52 @@ function ExamResultPage() {
                           alignItems: 'flex-start',
                         }}
                       >
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, width: '100%' }}>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          alignItems={{ xs: 'flex-start', sm: 'center' }}
+                          sx={{ mb: 1, width: '100%', gap: 1 }}
+                        >
                           <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
                             {index + 1}. {qResult.question}
                           </Typography>
-                          {isText ? (
+                          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                            {isText ? (
+                              <Chip
+                                label="Текстовый ответ"
+                                size="small"
+                                color="default"
+                                variant="outlined"
+                              />
+                            ) : isCorrect ? (
+                              <Chip
+                                icon={<CheckCircle />}
+                                label="Правильно"
+                                size="small"
+                                sx={{
+                                  bgcolor: bauhaus.teal,
+                                  color: 'white',
+                                  '& .MuiChip-icon': { color: 'white' },
+                                }}
+                              />
+                            ) : (
+                              <Chip
+                                icon={<Cancel />}
+                                label="Неправильно"
+                                size="small"
+                                sx={{
+                                  bgcolor: bauhaus.red,
+                                  color: 'white',
+                                  '& .MuiChip-icon': { color: 'white' },
+                                }}
+                              />
+                            )}
                             <Chip
-                              label="Текстовый ответ"
+                              label={`${qResult.earnedPoints}/${qResult.points}`}
                               size="small"
-                              color="default"
                               variant="outlined"
                             />
-                          ) : isCorrect ? (
-                            <Chip
-                              icon={<CheckCircle />}
-                              label="Правильно"
-                              size="small"
-                              sx={{
-                                bgcolor: bauhaus.teal,
-                                color: 'white',
-                                '& .MuiChip-icon': { color: 'white' },
-                              }}
-                            />
-                          ) : (
-                            <Chip
-                              icon={<Cancel />}
-                              label="Неправильно"
-                              size="small"
-                              sx={{
-                                bgcolor: bauhaus.red,
-                                color: 'white',
-                                '& .MuiChip-icon': { color: 'white' },
-                              }}
-                            />
-                          )}
-                          <Chip
-                            label={`${qResult.earnedPoints}/${qResult.points}`}
-                            size="small"
-                            variant="outlined"
-                          />
+                          </Stack>
                         </Stack>
 
                         {question.type === 'single' && (
@@ -408,7 +417,12 @@ function ExamResultPage() {
                     <ListItem>
                       <ListItemText
                         primary={
-                          <Stack direction="row" spacing={2} alignItems="center">
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems="center"
+                            sx={{ flexWrap: 'wrap', gap: 1 }}
+                          >
                             <Typography variant="body1">
                               Попытка {allAttempts.length - index}
                             </Typography>

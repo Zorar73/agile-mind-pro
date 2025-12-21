@@ -31,6 +31,7 @@ import {
   Quiz,
   CheckCircle,
   Warning,
+  HourglassEmpty,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../App';
@@ -274,17 +275,24 @@ function ExamTakingPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Вы получите уведомление, когда результаты будут готовы
             </Typography>
-            <Stack direction="row" spacing={2} justifyContent="center">
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              justifyContent="center"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
               <Button
                 variant="outlined"
                 startIcon={<ArrowBack />}
                 onClick={() => navigate(course ? `/learning/course/${course.id}` : '/learning')}
+                fullWidth
               >
                 Вернуться к курсу
               </Button>
               <Button
                 variant="contained"
                 onClick={() => navigate(`/learning/exam/${examId}/result`)}
+                fullWidth
                 sx={{
                   background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
                 }}
@@ -313,17 +321,24 @@ function ExamTakingPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Свяжитесь с преподавателем для получения дополнительной попытки
             </Typography>
-            <Stack direction="row" spacing={2} justifyContent="center">
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              justifyContent="center"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
               <Button
                 variant="outlined"
                 startIcon={<ArrowBack />}
                 onClick={() => navigate(course ? `/learning/course/${course.id}` : '/learning')}
+                fullWidth
               >
                 Вернуться к курсу
               </Button>
               <Button
                 variant="contained"
                 onClick={() => navigate(`/learning/exam/${examId}/result`)}
+                fullWidth
                 sx={{
                   background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
                 }}
@@ -349,17 +364,24 @@ function ExamTakingPage() {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               Вы можете просмотреть результаты
             </Typography>
-            <Stack direction="row" spacing={2} justifyContent="center">
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              justifyContent="center"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
               <Button
                 variant="outlined"
                 startIcon={<ArrowBack />}
                 onClick={() => navigate(course ? `/learning/course/${course.id}` : '/learning')}
+                fullWidth
               >
                 Вернуться к курсу
               </Button>
               <Button
                 variant="contained"
                 onClick={() => navigate(`/learning/exam/${examId}/result`)}
+                fullWidth
                 sx={{
                   background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
                 }}
@@ -428,7 +450,12 @@ function ExamTakingPage() {
                   {exam.timeLimit && (
                     <Grid item xs={12}>
                       <Paper sx={{ p: 2, textAlign: 'center', bgcolor: `${bauhaus.yellow}10` }}>
-                        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          justifyContent="center"
+                          alignItems="center"
+                        >
                           <Timer />
                           <Typography variant="body2" color="text.secondary">
                             Ограничение времени:
@@ -443,7 +470,12 @@ function ExamTakingPage() {
                   {exam.maxAttempts && (
                     <Grid item xs={12}>
                       <Paper sx={{ p: 2, textAlign: 'center', bgcolor: `${bauhaus.purple}10` }}>
-                        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          justifyContent="center"
+                          alignItems="center"
+                        >
                           <Quiz />
                           <Typography variant="body2" color="text.secondary">
                             Попыток осталось:
@@ -518,8 +550,14 @@ function ExamTakingPage() {
           }}
         >
           <Stack spacing={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" fontWeight={700}>
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              gap: 1
+            }}>
+              <Typography variant="h6" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
                 {exam.title}
               </Typography>
               {timeRemaining !== null && (
@@ -563,7 +601,12 @@ function ExamTakingPage() {
               <CardContent sx={{ p: 3 }}>
                 <Stack spacing={2}>
                   <Box>
-                    <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: 1 }}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="baseline"
+                      sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}
+                    >
                       <Typography variant="h6" fontWeight={700}>
                         Вопрос {currentQuestionIndex + 1}
                       </Typography>
@@ -685,12 +728,17 @@ function ExamTakingPage() {
 
         {/* Navigation Buttons */}
         <Box sx={{ mt: 4, mb: 4 }}>
-          <Stack direction="row" spacing={2} justifyContent="space-between">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            justifyContent="space-between"
+          >
             <Button
               variant="outlined"
               onClick={handlePreviousQuestion}
               disabled={isFirstQuestion}
-              sx={{ px: 4 }}
+              fullWidth
+              sx={{ px: 4, order: { xs: 2, sm: 1 } }}
             >
               Предыдущий
             </Button>
@@ -701,10 +749,12 @@ function ExamTakingPage() {
                 startIcon={submitting ? <CircularProgress size={20} /> : <Send />}
                 onClick={() => handleSubmit(false)}
                 disabled={submitting}
+                fullWidth
                 sx={{
                   py: 1.5,
                   px: 6,
                   background: 'linear-gradient(135deg, #1E88E5 0%, #26A69A 100%)',
+                  order: { xs: 1, sm: 2 },
                 }}
               >
                 {submitting ? 'Отправка...' : 'Отправить экзамен'}
@@ -713,9 +763,11 @@ function ExamTakingPage() {
               <Button
                 variant="contained"
                 onClick={handleNextQuestion}
+                fullWidth
                 sx={{
                   px: 4,
                   background: 'linear-gradient(135deg, #1E88E5 0%, #26A69A 100%)',
+                  order: { xs: 1, sm: 2 },
                 }}
               >
                 Следующий

@@ -295,9 +295,13 @@ function MainLayout({ children, title, showAppBar = true }) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 64}px)` },
+          width: {
+            xs: '100%',
+            sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 64}px)`
+          },
           transition: 'width 0.2s',
           minHeight: '100vh',
+          overflow: 'hidden',
         }}
       >
         {showAppBar && (
@@ -311,7 +315,11 @@ function MainLayout({ children, title, showAppBar = true }) {
               borderColor: 'divider',
             }}
           >
-            <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
+            <Toolbar sx={{
+              minHeight: { xs: 56, sm: 64 },
+              px: { xs: 1, sm: 2 },
+              gap: 1,
+            }}>
               <IconButton
                 edge="start"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -321,13 +329,20 @@ function MainLayout({ children, title, showAppBar = true }) {
               </IconButton>
               
               {/* Хлебные крошки */}
-              <Box sx={{ flexGrow: 1 }}>
+              <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
                 {breadcrumbs.length > 0 ? (
-                  <Breadcrumbs 
+                  <Breadcrumbs
                     separator={<NavigateNext fontSize="small" sx={{ color: 'text.disabled' }} />}
+                    maxItems={2}
                     sx={{
                       '& .MuiBreadcrumbs-ol': { flexWrap: 'nowrap' },
-                      '& .MuiBreadcrumbs-li': { whiteSpace: 'nowrap' },
+                      '& .MuiBreadcrumbs-li': {
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: { xs: 100, sm: 150, md: 200 },
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      },
                     }}
                   >
                     {breadcrumbs.map((crumb, index) => {
@@ -358,13 +373,15 @@ function MainLayout({ children, title, showAppBar = true }) {
                             {loadingNames && crumb.label === 'Загрузка...' ? (
                               <Skeleton variant="text" width={100} />
                             ) : (
-                              <Typography 
-                                variant="subtitle1" 
+                              <Typography
+                                variant="subtitle1"
                                 fontWeight={600}
                                 sx={{
-                                  maxWidth: 300,
+                                  maxWidth: { xs: 100, sm: 150, md: 200 },
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  fontSize: { xs: '0.875rem', sm: '1rem' },
                                 }}
                               >
                                 {crumb.label}
@@ -429,7 +446,11 @@ function MainLayout({ children, title, showAppBar = true }) {
           </AppBar>
         )}
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{
+          p: { xs: 2, sm: 3 },
+          maxWidth: '100%',
+          overflow: 'hidden',
+        }}>
           {children}
         </Box>
       </Box>
