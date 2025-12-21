@@ -191,17 +191,18 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem>
-                <ListItemIcon>
-                  {settings.theme === 'dark' ? <DarkMode /> : <LightMode />}
-                </ListItemIcon>
-                <ListItemText
-                  primary="Тема оформления"
-                  secondary="Выберите светлую, тёмную или системную тему"
-                  sx={{ pr: { xs: 20, sm: 22 } }}
-                />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>
+                    {settings.theme === 'dark' ? <DarkMode /> : <LightMode />}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Тема оформления"
+                    secondary="Выберите светлую, тёмную или системную тему"
+                  />
+                </Box>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.theme}
                       onChange={(e) => handleSettingChange('theme', e.target.value)}
@@ -211,23 +212,22 @@ function SettingsPage() {
                       <MenuItem value="system">🖥️ Системная</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
 
               <Divider component="li" />
 
-              <ListItem>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                 <ListItemText
                   primary="Компактный режим"
                   secondary="Уменьшенные отступы для большей информации на экране"
-                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
-                <ListItemSecondaryAction>
+                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
                   <Switch
                     checked={settings.compactMode}
                     onChange={(e) => handleSettingChange('compactMode', e.target.checked)}
                   />
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
             </List>
           </CardContent>
@@ -245,28 +245,27 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem>
-                <ListItemIcon><Email /></ListItemIcon>
-                <ListItemText
-                  primary="Email уведомления"
-                  secondary="Получать уведомления на почту"
-                  sx={{ pr: { xs: 12, sm: 14 } }}
-                />
-                <ListItemSecondaryAction>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => setEmailDetailsExpanded(!emailDetailsExpanded)}
-                      disabled={!settings.emailNotifications}
-                    >
-                      {emailDetailsExpanded ? <ExpandLess /> : <ExpandMore />}
-                    </IconButton>
-                    <Switch
-                      checked={settings.emailNotifications}
-                      onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
-                    />
-                  </Box>
-                </ListItemSecondaryAction>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><Email /></ListItemIcon>
+                  <ListItemText
+                    primary="Email уведомления"
+                    secondary="Получать уведомления на почту"
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: { xs: 6, sm: 0 } }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setEmailDetailsExpanded(!emailDetailsExpanded)}
+                    disabled={!settings.emailNotifications}
+                  >
+                    {emailDetailsExpanded ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
+                  <Switch
+                    checked={settings.emailNotifications}
+                    onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
+                  />
+                </Box>
               </ListItem>
 
               {/* Детальные настройки Email */}
@@ -364,87 +363,91 @@ function SettingsPage() {
 
               <Divider component="li" />
 
-              <ListItem>
-                <ListItemIcon><Notifications /></ListItemIcon>
-                <ListItemText
-                  primary="Push уведомления"
-                  secondary={
-                    browserPush.isSupported()
-                      ? browserPush.hasPermission()
-                        ? "Разрешение получено"
-                        : "Требуется разрешение браузера"
-                      : "Не поддерживается браузером"
-                  }
-                  sx={{ pr: { xs: 8, sm: 10 } }}
-                />
-                <ListItemSecondaryAction>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><Notifications /></ListItemIcon>
+                  <ListItemText
+                    primary="Push уведомления"
+                    secondary={
+                      browserPush.isSupported()
+                        ? browserPush.hasPermission()
+                          ? "Разрешение получено"
+                          : "Требуется разрешение браузера"
+                        : "Не поддерживается браузером"
+                    }
+                  />
+                </Box>
+                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
                   <Switch
                     checked={settings.pushNotifications}
                     onChange={(e) => handleSettingChange('pushNotifications', e.target.checked)}
                     disabled={!browserPush.isSupported()}
                   />
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
 
               <Divider component="li" />
 
-              <ListItem>
-                <ListItemIcon><Assignment /></ListItemIcon>
-                <ListItemText
-                  primary="Напоминания о задачах"
-                  secondary="Напоминать о приближающихся дедлайнах"
-                  sx={{ pr: { xs: 8, sm: 10 } }}
-                />
-                <ListItemSecondaryAction>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><Assignment /></ListItemIcon>
+                  <ListItemText
+                    primary="Напоминания о задачах"
+                    secondary="Напоминать о приближающихся дедлайнах"
+                  />
+                </Box>
+                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
                   <Switch
                     checked={settings.taskReminders}
                     onChange={(e) => handleSettingChange('taskReminders', e.target.checked)}
                   />
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
 
               <Divider component="li" />
 
-              <ListItem>
-                <ListItemIcon><Email /></ListItemIcon>
-                <ListItemText
-                  primary="Еженедельный дайджест"
-                  secondary="Сводка активности за неделю"
-                  sx={{ pr: { xs: 8, sm: 10 } }}
-                />
-                <ListItemSecondaryAction>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><Email /></ListItemIcon>
+                  <ListItemText
+                    primary="Еженедельный дайджест"
+                    secondary="Сводка активности за неделю"
+                  />
+                </Box>
+                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
                   <Switch
                     checked={settings.weeklyDigest}
                     onChange={(e) => handleSettingChange('weeklyDigest', e.target.checked)}
                   />
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
 
               <Divider component="li" />
 
-              <ListItem>
-                <ListItemIcon>{settings.soundNotifications ? <VolumeUp /> : <VolumeOff />}</ListItemIcon>
-                <ListItemText
-                  primary="Звуковые уведомления"
-                  secondary="Воспроизводить звук при получении уведомлений"
-                  sx={{ pr: { xs: 8, sm: 10 } }}
-                />
-                <ListItemSecondaryAction>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>{settings.soundNotifications ? <VolumeUp /> : <VolumeOff />}</ListItemIcon>
+                  <ListItemText
+                    primary="Звуковые уведомления"
+                    secondary="Воспроизводить звук при получении уведомлений"
+                  />
+                </Box>
+                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
                   <Switch
                     checked={settings.soundNotifications}
                     onChange={(e) => handleSettingChange('soundNotifications', e.target.checked)}
                   />
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
 
               {settings.soundNotifications && (
-                <ListItem>
+                <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                   <ListItemText
                     primary="Громкость звуков"
                     secondary={`${Math.round(settings.soundVolume * 100)}%`}
-                    sx={{ pl: { xs: 2, sm: 7 }, pr: { xs: 8, sm: 10 } }}
+                    sx={{ pl: { xs: 6, sm: 7 } }}
                   />
-                  <ListItemSecondaryAction sx={{ width: { xs: '100%', sm: 200 }, pr: 2, position: { xs: 'relative', sm: 'absolute' }, mt: { xs: 2, sm: 0 } }}>
+                  <Box sx={{ width: { xs: '100%', sm: 200 }, pl: { xs: 6, sm: 0 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <VolumeOff fontSize="small" />
                       <input
@@ -457,7 +460,7 @@ function SettingsPage() {
                       />
                       <VolumeUp fontSize="small" />
                     </Box>
-                  </ListItemSecondaryAction>
+                  </Box>
                 </ListItem>
               )}
             </List>
@@ -475,15 +478,16 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem>
-                <ListItemIcon><ViewKanban /></ListItemIcon>
-                <ListItemText
-                  primary="Вид по умолчанию"
-                  secondary="При открытии списка задач"
-                  sx={{ pr: { xs: 20, sm: 22 } }}
-                />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><ViewKanban /></ListItemIcon>
+                  <ListItemText
+                    primary="Вид по умолчанию"
+                    secondary="При открытии списка задач"
+                  />
+                </Box>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.defaultTaskView}
                       onChange={(e) => handleSettingChange('defaultTaskView', e.target.value)}
@@ -494,19 +498,18 @@ function SettingsPage() {
                       <MenuItem value="cards">Карточки</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
-              
+
               <Divider component="li" />
-              
-              <ListItem>
+
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                 <ListItemText
                   primary="Приоритет по умолчанию"
                   secondary="Для новых задач"
-                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.defaultPriority}
                       onChange={(e) => handleSettingChange('defaultPriority', e.target.value)}
@@ -517,20 +520,21 @@ function SettingsPage() {
                       <MenuItem value="urgent">Срочный</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
-              
+
               <Divider component="li" />
-              
-              <ListItem>
-                <ListItemIcon><Storage /></ListItemIcon>
-                <ListItemText
-                  primary="Автоархивация"
-                  secondary="Архивировать выполненные задачи через N дней (0 = отключено)"
-                  sx={{ pr: { xs: 16, sm: 18 } }}
-                />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 90, sm: 100 } }}>
+
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><Storage /></ListItemIcon>
+                  <ListItemText
+                    primary="Автоархивация"
+                    secondary="Архивировать выполненные задачи через N дней (0 = отключено)"
+                  />
+                </Box>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 130 } }}>
                     <Select
                       value={settings.autoArchiveDays}
                       onChange={(e) => handleSettingChange('autoArchiveDays', e.target.value)}
@@ -542,23 +546,22 @@ function SettingsPage() {
                       <MenuItem value={60}>60 дней</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
-              
+
               <Divider component="li" />
-              
-              <ListItem>
+
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                 <ListItemText
                   primary="Показывать выполненные"
                   secondary="Отображать завершённые задачи в списках"
-                  sx={{ pr: { xs: 8, sm: 10 } }}
                 />
-                <ListItemSecondaryAction>
+                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
                   <Switch
                     checked={settings.showCompletedTasks}
                     onChange={(e) => handleSettingChange('showCompletedTasks', e.target.checked)}
                   />
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
             </List>
           </CardContent>
@@ -575,14 +578,13 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                 <ListItemText
                   primary="Начало недели"
                   secondary="Первый день недели в календаре"
-                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.calendarStartDay}
                       onChange={(e) => handleSettingChange('calendarStartDay', e.target.value)}
@@ -591,19 +593,18 @@ function SettingsPage() {
                       <MenuItem value={0}>Воскресенье</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
-              
+
               <Divider component="li" />
-              
-              <ListItem>
+
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                 <ListItemText
                   primary="Масштаб по умолчанию"
                   secondary="При открытии календаря"
-                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.defaultCalendarView}
                       onChange={(e) => handleSettingChange('defaultCalendarView', e.target.value)}
@@ -613,7 +614,7 @@ function SettingsPage() {
                       <MenuItem value="month">Месяц</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
             </List>
           </CardContent>
@@ -631,14 +632,13 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
                 <ListItemText
                   primary="Язык интерфейса"
                   secondary="Выберите язык приложения"
-                  sx={{ pr: { xs: 20, sm: 22 } }}
                 />
-                <ListItemSecondaryAction>
-                  <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                  <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.language}
                       onChange={(e) => handleSettingChange('language', e.target.value)}
@@ -647,7 +647,7 @@ function SettingsPage() {
                       <MenuItem value="en" disabled>🇬🇧 English (скоро)</MenuItem>
                     </Select>
                   </FormControl>
-                </ListItemSecondaryAction>
+                </Box>
               </ListItem>
             </List>
           </CardContent>

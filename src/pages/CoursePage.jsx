@@ -112,11 +112,11 @@ function CoursePage() {
   if (!course) {
     return (
       <MainLayout>
-        <Container>
+        <Box sx={{ px: { xs: 2, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
           <Typography variant="h6" color="text.secondary">
             Курс не найден
           </Typography>
-        </Container>
+        </Box>
       </MainLayout>
     );
   }
@@ -125,7 +125,7 @@ function CoursePage() {
 
   return (
     <MainLayout>
-      <Container>
+      <Box sx={{ px: { xs: 2, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
         <Button
           startIcon={<ArrowBack />}
           onClick={() => navigate('/learning')}
@@ -387,7 +387,7 @@ function CoursePage() {
             </Card>
           </>
         )}
-      </Container>
+      </Box>
     </MainLayout>
   );
 }

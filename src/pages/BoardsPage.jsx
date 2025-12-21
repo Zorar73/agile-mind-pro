@@ -512,34 +512,51 @@ function BoardsPage() {
           transition: 'all 0.2s',
           borderLeft: 4,
           borderColor: board.color || bauhaus.blue,
-          '&:hover': { boxShadow: 3, transform: 'translateX(4px)' },
+          '&:hover': { boxShadow: 3, transform: { xs: 'none', sm: 'translateX(4px)' } },
         }}
         onClick={() => navigate(`/board/${board.id}`)}
       >
-        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: board.color || bauhaus.blue }} />
-            
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="subtitle1" fontWeight="600" noWrap>
-                {board.title || 'Без названия'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {stats.completedTasks}/{stats.totalTasks} задач • {formatDate(board.updatedAt || board.createdAt)}
-              </Typography>
+        <CardContent sx={{ py: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            gap: { xs: 1, sm: 2 }
+          }}>
+            {/* Left: Color + Title */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1, minWidth: 0, width: { xs: '100%', sm: 'auto' } }}>
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: board.color || bauhaus.blue, flexShrink: 0 }} />
+
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Typography variant="subtitle1" fontWeight="600" noWrap sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  {board.title || 'Без названия'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                  {stats.completedTasks}/{stats.totalTasks} задач • {formatDate(board.updatedAt || board.createdAt)}
+                </Typography>
+              </Box>
             </Box>
 
-            <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.75rem' } }}>
-              {members.map(memberId => (
-                <Avatar key={memberId} sx={{ bgcolor: bauhaus.blue }}>
-                  {users[memberId]?.firstName?.charAt(0) || '?'}
-                </Avatar>
-              ))}
-            </AvatarGroup>
+            {/* Right: Avatars + Menu */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              alignSelf: { xs: 'flex-end', sm: 'center' },
+              flexShrink: 0
+            }}>
+              <AvatarGroup max={{ xs: 2, sm: 3 }} sx={{ '& .MuiAvatar-root': { width: { xs: 24, sm: 28 }, height: { xs: 24, sm: 28 }, fontSize: '0.7rem' } }}>
+                {members.map(memberId => (
+                  <Avatar key={memberId} sx={{ bgcolor: bauhaus.blue }}>
+                    {users[memberId]?.firstName?.charAt(0) || '?'}
+                  </Avatar>
+                ))}
+              </AvatarGroup>
 
-            <IconButton size="small" onClick={(e) => handleMenuOpen(e, board)}>
-              <MoreVert fontSize="small" />
-            </IconButton>
+              <IconButton size="small" onClick={(e) => handleMenuOpen(e, board)}>
+                <MoreVert fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
         </CardContent>
       </Card>

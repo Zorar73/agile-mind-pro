@@ -14,7 +14,15 @@
       "Bash(npm install react-quill)",
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "Bash(git push:*)",
+      "Bash(ssh root@89.23.98.91 \"ls -la /var/www/agile-mind-pro/frontend/ | head -20\")",
+      "Bash(ssh:*)",
+      "Bash(rsync:*)",
+      "Bash(scp:*)",
+      "Bash(tar:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(git archive:*)"
     ]
   }
 }

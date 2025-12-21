@@ -124,12 +124,13 @@ function LearningPortalPage() {
       <Box
         sx={{
           background: `linear-gradient(135deg, ${bauhaus.blue}15 0%, ${bauhaus.teal}15 100%)`,
-          py: 6,
+          py: { xs: 3, md: 6 },
           mb: 4,
           borderRadius: 4,
+          px: { xs: 2, sm: 3 },
         }}
       >
-        <Container>
+        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
           <Box sx={{
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
@@ -243,10 +244,10 @@ function LearningPortalPage() {
               },
             }}
           />
-        </Container>
+        </Box>
       </Box>
 
-      <Container>
+      <Box sx={{ px: { xs: 2, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
         {/* Categories */}
         <Box sx={{ mb: 4 }}>
           <Tabs
@@ -429,7 +430,7 @@ function LearningPortalPage() {
             </Grid>
           </Box>
         )}
-      </Container>
+      </Box>
     </MainLayout>
   );
 }
