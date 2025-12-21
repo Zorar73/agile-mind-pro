@@ -88,10 +88,9 @@ function TeamPage() {
 
   return (
     <MainLayout title="Команды">
-      <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h4" fontWeight={700} gutterBottom>Команды</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} gutterBottom>Команды</Typography>
             <Typography variant="body2" color="text.secondary">Совместная работа и общение</Typography>
           </Box>
           <Button variant="contained" startIcon={<Add />} onClick={() => setCreateDialogOpen(true)} sx={{ borderRadius: 50 }}>
@@ -167,7 +166,6 @@ function TeamPage() {
             </List>
           </Box>
         )}
-      </Box>
 
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Создать команду</DialogTitle>

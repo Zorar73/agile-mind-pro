@@ -269,10 +269,9 @@ function ProfilePage() {
 
   return (
     <MainLayout>
-      <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Профиль
-        </Typography>
+      <Typography variant="h4" fontWeight={700} gutterBottom>
+        Профиль
+      </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
           Личные данные, статистика и достижения
         </Typography>
@@ -722,7 +721,6 @@ function ProfilePage() {
             </Card>
           </Grid>
         </Grid>
-      </Box>
 
       <AvatarSelector
         open={avatarSelectorOpen}
