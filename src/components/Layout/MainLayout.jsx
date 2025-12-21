@@ -27,6 +27,7 @@ import {
   Lightbulb,
   Notifications,
   People,
+  School,
 } from '@mui/icons-material';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -56,6 +57,12 @@ const ROUTE_CONFIG = {
   '/my-tasks': { label: 'Мои задачи', icon: Assignment, color: bauhaus.purple },
   '/team': { label: 'Команды', icon: Group, color: bauhaus.red, dynamic: true },
   '/sketches': { label: 'Наброски', icon: Lightbulb, color: bauhaus.yellow },
+  '/learning': { label: 'Обучение', icon: School, color: bauhaus.teal },
+  '/admin': { label: 'Администрирование', icon: Settings, color: bauhaus.purple },
+  '/course': { label: 'Курс', icon: School, color: bauhaus.teal, dynamic: true },
+  '/lesson': { label: 'Урок', icon: School, color: bauhaus.teal, dynamic: true },
+  '/exam': { label: 'Экзамен', icon: School, color: bauhaus.teal, dynamic: true },
+  '/categories': { label: 'Категории', icon: School, color: bauhaus.teal },
   '/notifications': { label: 'Уведомления', icon: Notifications, color: bauhaus.blue },
   '/users': { label: 'Пользователи', icon: People, color: bauhaus.purple },
   '/settings': { label: 'Настройки', icon: Settings, color: bauhaus.teal },
@@ -88,7 +95,7 @@ function MainLayout({ children, title, showAppBar = true }) {
     const loadDynamicNames = async () => {
       const path = location.pathname;
       const segments = path.split('/').filter(Boolean);
-      
+
       if (segments[0] === 'board' && segments[1]) {
         const boardId = segments[1];
         const existingBoard = boards.find(b => b.id === boardId);
@@ -107,7 +114,7 @@ function MainLayout({ children, title, showAppBar = true }) {
           setLoadingNames(false);
         }
       }
-      
+
       if (segments[0] === 'team' && segments[1]) {
         const teamId = segments[1];
         setLoadingNames(true);
@@ -123,6 +130,69 @@ function MainLayout({ children, title, showAppBar = true }) {
         } catch (e) {
           console.error('Error loading team name:', e);
           setDynamicNames(prev => ({ ...prev, [`team_${teamId}`]: 'Команда' }));
+        }
+        setLoadingNames(false);
+      }
+
+      // Load course names for learning routes
+      // Handles: /learning/course/:courseId and /learning/admin/course/:courseId
+      const courseIndex = segments.indexOf('course');
+      if (courseIndex !== -1 && segments[courseIndex + 1]) {
+        const courseId = segments[courseIndex + 1];
+        setLoadingNames(true);
+        try {
+          const { default: learningService } = await import('../../services/learning.service');
+          const result = await learningService.getCourse(courseId);
+          if (result.success) {
+            setDynamicNames(prev => ({ ...prev, [`course_${courseId}`]: result.course.title }));
+          } else {
+            setDynamicNames(prev => ({ ...prev, [`course_${courseId}`]: 'Курс' }));
+          }
+        } catch (e) {
+          console.error('Error loading course name:', e);
+          setDynamicNames(prev => ({ ...prev, [`course_${courseId}`]: 'Курс' }));
+        }
+        setLoadingNames(false);
+      }
+
+      // Load lesson names for learning routes
+      // Handles: /learning/lesson/:lessonId
+      const lessonIndex = segments.indexOf('lesson');
+      if (lessonIndex !== -1 && segments[lessonIndex + 1]) {
+        const lessonId = segments[lessonIndex + 1];
+        setLoadingNames(true);
+        try {
+          const { default: learningService } = await import('../../services/learning.service');
+          const result = await learningService.getLesson(lessonId);
+          if (result.success) {
+            setDynamicNames(prev => ({ ...prev, [`lesson_${lessonId}`]: result.lesson.title }));
+          } else {
+            setDynamicNames(prev => ({ ...prev, [`lesson_${lessonId}`]: 'Урок' }));
+          }
+        } catch (e) {
+          console.error('Error loading lesson name:', e);
+          setDynamicNames(prev => ({ ...prev, [`lesson_${lessonId}`]: 'Урок' }));
+        }
+        setLoadingNames(false);
+      }
+
+      // Load exam names for learning routes
+      // Handles: /learning/exam/:examId
+      const examIndex = segments.indexOf('exam');
+      if (examIndex !== -1 && segments[examIndex + 1]) {
+        const examId = segments[examIndex + 1];
+        setLoadingNames(true);
+        try {
+          const { default: learningService } = await import('../../services/learning.service');
+          const result = await learningService.getExam(examId);
+          if (result.success) {
+            setDynamicNames(prev => ({ ...prev, [`exam_${examId}`]: result.exam.title }));
+          } else {
+            setDynamicNames(prev => ({ ...prev, [`exam_${examId}`]: 'Экзамен' }));
+          }
+        } catch (e) {
+          console.error('Error loading exam name:', e);
+          setDynamicNames(prev => ({ ...prev, [`exam_${examId}`]: 'Экзамен' }));
         }
         setLoadingNames(false);
       }
@@ -165,19 +235,22 @@ function MainLayout({ children, title, showAppBar = true }) {
               color: bauhaus.blue,
             });
           }
-          
+
           const dynamicId = segments[i + 1];
           const dynamicKey = `${segment}_${dynamicId}`;
           const dynamicLabel = dynamicNames[dynamicKey] || 'Загрузка...';
-          
+
+          // Update currentPath to include the dynamic ID
+          currentPath += `/${dynamicId}`;
+
           crumbs.push({
             label: dynamicLabel,
-            path: `/${segment}/${dynamicId}`,
+            path: currentPath,
             icon: config.icon,
             color: config.color,
             isLast: i + 1 === segments.length - 1,
           });
-          
+
           i++;
         } else {
           crumbs.push({

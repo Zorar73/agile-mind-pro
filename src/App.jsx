@@ -29,6 +29,19 @@ const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage'));
 const CloudinaryTestPage = lazy(() => import('./pages/CloudinaryTestPage'));
 const SprintsPage = lazy(() => import('./pages/SprintsPage'));
 const LearningPortalPage = lazy(() => import('./pages/LearningPortalPage'));
+const LearningAdminPage = lazy(() => import('./pages/LearningAdminPage'));
+const CoursePage = lazy(() => import('./pages/CoursePage'));
+const LessonPage = lazy(() => import('./pages/LessonPage'));
+const LessonManagementPage = lazy(() => import('./pages/LessonManagementPage'));
+const CourseCategoriesPage = lazy(() => import('./pages/CourseCategoriesPage'));
+const MyLearningStatsPage = lazy(() => import('./pages/MyLearningStatsPage'));
+const ExamManagementPage = lazy(() => import('./pages/ExamManagementPage'));
+const ExamTakingPage = lazy(() => import('./pages/ExamTakingPage'));
+const ExamResultPage = lazy(() => import('./pages/ExamResultPage'));
+const ExamResultsReviewPage = lazy(() => import('./pages/ExamResultsReviewPage'));
+const CourseStatsPage = lazy(() => import('./pages/CourseStatsPage'));
+const CourseAccessPage = lazy(() => import('./pages/CourseAccessPage'));
+const CourseManagementPage = lazy(() => import('./pages/CourseManagementPage'));
 
 const UserContext = createContext();
 
@@ -139,6 +152,18 @@ function App() {
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/learning" element={<ProtectedRoute><LearningPortalPage /></ProtectedRoute>} />
+              <Route path="/learning/stats" element={<ProtectedRoute><MyLearningStatsPage /></ProtectedRoute>} />
+              <Route path="/learning/admin" element={<ProtectedRoute><LearningAdminPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/categories" element={<ProtectedRoute><CourseCategoriesPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/course/:courseId" element={<ProtectedRoute><CourseManagementPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/course/:courseId/exams" element={<ProtectedRoute><ExamManagementPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/course/:courseId/stats" element={<ProtectedRoute><CourseStatsPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/course/:courseId/access" element={<ProtectedRoute><CourseAccessPage /></ProtectedRoute>} />
+              <Route path="/learning/course/:courseId" element={<ProtectedRoute><CoursePage /></ProtectedRoute>} />
+              <Route path="/learning/lesson/:lessonId" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
+              <Route path="/learning/exam/:examId" element={<ProtectedRoute><ExamTakingPage /></ProtectedRoute>} />
+              <Route path="/learning/exam/:examId/result" element={<ProtectedRoute><ExamResultPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/exam/:examId/results" element={<ProtectedRoute><ExamResultsReviewPage /></ProtectedRoute>} />
               <Route path="/cloudinary-test" element={<ProtectedRoute><CloudinaryTestPage /></ProtectedRoute>} />
                   </Routes>
                 </Suspense>

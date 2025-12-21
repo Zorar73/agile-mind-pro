@@ -27,6 +27,7 @@ import {
   EmojiEvents,
   Add,
   Settings as SettingsIcon,
+  BarChart,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../App';
@@ -41,23 +42,13 @@ const bauhaus = {
   purple: '#7E57C2',
 };
 
-const categories = [
-  { id: 'all', label: 'Все' },
-  { id: 'getting-started', label: 'Начало работы' },
-  { id: 'boards', label: 'Доски' },
-  { id: 'sprints', label: 'Спринты' },
-  { id: 'teams', label: 'Команды' },
-  { id: 'analytics', label: 'Аналитика' },
-  { id: 'ai', label: 'AI Ассистент' },
-  { id: 'general', label: 'Общее' },
-];
-
 function LearningPortalPage() {
   const navigate = useNavigate();
   const { user } = useContext(UserContext);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [courses, setCourses] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalCourses: 0,
@@ -67,13 +58,31 @@ function LearningPortalPage() {
 
   useEffect(() => {
     if (user) {
-      loadCourses();
+      loadData();
     }
   }, [user]);
 
-  const loadCourses = async () => {
+  const loadData = async () => {
     setLoading(true);
-    const result = await learningService.getUserCoursesWithProgress(user.uid);
+
+    // Загружаем категории
+    const categoriesResult = await learningService.getCategories();
+    if (categoriesResult.success) {
+      setCategories(categoriesResult.categories);
+    }
+
+    // Загружаем курсы
+    await loadCourses();
+
+    setLoading(false);
+  };
+
+  const loadCourses = async () => {
+    // Get user teams first
+    const teamsResult = await learningService.getUserTeams(user.uid);
+    const userTeams = teamsResult.success ? teamsResult.teams : [];
+
+    const result = await learningService.getUserCoursesWithProgress(user.uid, userTeams);
 
     if (result.success) {
       setCourses(result.courses);
@@ -88,8 +97,6 @@ function LearningPortalPage() {
         inProgressCourses: inProgress,
       });
     }
-
-    setLoading(false);
   };
 
   const filteredCourses = courses.filter(course => {
@@ -135,19 +142,29 @@ function LearningPortalPage() {
                 Освойте Agile Mind Pro. {stats.totalCourses} курсов доступно.
               </Typography>
             </Box>
-            {isAdmin && (
+            <Stack direction="row" spacing={2}>
               <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => navigate('/learning/admin')}
-                sx={{
-                  borderRadius: 2,
-                  background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
-                }}
+                variant="outlined"
+                startIcon={<BarChart />}
+                onClick={() => navigate('/learning/stats')}
+                sx={{ borderRadius: 2 }}
               >
-                Управление курсами
+                Моя статистика
               </Button>
-            )}
+              {isAdmin && (
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => navigate('/learning/admin')}
+                  sx={{
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
+                  }}
+                >
+                  Управление курсами
+                </Button>
+              )}
+            </Stack>
           </Box>
 
           {/* Stats */}

@@ -1,0 +1,282 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================
+    // HELPER FUNCTIONS
+    // =====================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() == 'admin';
+    }
+
+    function isOwner() {
+      return isSignedIn() && getUserRole() == 'owner';
+    }
+
+    function isAdminOrOwner() {
+      return isAdmin() || isOwner();
+    }
+
+    function isApproved() {
+      return isSignedIn() && getUserRole() != 'pending';
+    }
+
+    // =====================
+    // USERS
+    // =====================
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if true;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /userSettings/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // =====================
+    // BOARDS
+    // =====================
+
+    match /boards/{boardId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && (
+        resource.data.isPublic == true ||
+        resource.data.members[request.auth.uid] != null
+      );
+      allow create: if isApproved();
+      allow update: if isSignedIn() && (
+        resource.data.members[request.auth.uid] in ['owner', 'admin']
+      );
+      allow delete: if isSignedIn() && resource.data.members[request.auth.uid] == 'owner';
+
+      match /columns/{columnId} {
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/boards/$(boardId)).data.isPublic == true ||
+          get(/databases/$(database)/documents/boards/$(boardId)).data.members[request.auth.uid] != null
+        );
+        allow write: if isSignedIn() && (
+          get(/databases/$(database)/documents/boards/$(boardId)).data.members[request.auth.uid] in ['owner', 'admin', 'editor']
+        );
+      }
+    }
+
+    // =====================
+    // TASKS
+    // =====================
+
+    match /tasks/{taskId} {
+      allow list, get: if isSignedIn();
+      allow create: if isApproved();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow delete: if isSignedIn() && (
+          resource.data.userId == request.auth.uid || isAdmin()
+        );
+
+        match /replies/{replyId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn();
+          allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+          allow delete: if isSignedIn() && (
+            resource.data.userId == request.auth.uid || isAdmin()
+          );
+        }
+      }
+
+      match /subtasks/{subtaskId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn();
+      }
+    }
+
+    // =====================
+    // TEAMS
+    // =====================
+
+    match /teams/{teamId} {
+      allow list, get: if isSignedIn();
+      allow create: if isApproved();
+      allow update: if isSignedIn() && resource.data.members[request.auth.uid] in ['leader', 'admin'];
+      allow delete: if isSignedIn() && resource.data.leader == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
+        allow create: if isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
+        allow update: if isSignedIn() && resource.data.senderId == request.auth.uid;
+        allow delete: if isSignedIn() && (
+          resource.data.senderId == request.auth.uid ||
+          get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] in ['leader', 'admin']
+        );
+      }
+    }
+
+    // =====================
+    // SKETCHES
+    // =====================
+
+    match /sketches/{sketchId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid ||
+        request.auth.uid in resource.data.sharedWith.users ||
+        exists(/databases/$(database)/documents/teams/$(resource.data.sharedWith.teams[0])/members/$(request.auth.uid))
+      );
+      allow create: if isApproved();
+      allow update: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow delete: if isSignedIn() && (
+          resource.data.userId == request.auth.uid || isAdmin()
+        );
+
+        match /replies/{replyId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn();
+          allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+          allow delete: if isSignedIn() && (
+            resource.data.userId == request.auth.uid || isAdmin()
+          );
+        }
+      }
+    }
+
+    // =====================
+    // NEWS
+    // =====================
+
+    match /news/{newsId} {
+      allow list, get: if isSignedIn();
+      allow create: if isSignedIn() && (isAdmin() || getUserData().canCreateNews == true);
+      allow update: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid || isAdmin()
+      );
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow delete: if isSignedIn() && (
+          resource.data.userId == request.auth.uid || isAdmin()
+        );
+
+        match /replies/{replyId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn();
+          allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+          allow delete: if isSignedIn() && (
+            resource.data.userId == request.auth.uid || isAdmin()
+          );
+        }
+      }
+    }
+
+    // =====================
+    // NOTIFICATIONS
+    // =====================
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // =====================
+    // SPRINTS
+    // =====================
+
+    match /sprints/{sprintId} {
+      allow list, get: if isSignedIn();
+      allow create: if isApproved();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // =====================
+    // LEARNING SYSTEM
+    // =====================
+
+    // Курсы - все могут читать, только админы/владельцы управляют
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow create: if isAdminOrOwner();
+      allow update: if isAdminOrOwner();
+      allow delete: if isAdminOrOwner();
+    }
+
+    // Уроки - все могут читать, только админы/владельцы управляют
+    match /lessons/{lessonId} {
+      allow read: if isSignedIn();
+      allow create: if isAdminOrOwner();
+      allow update: if isAdminOrOwner();
+      allow delete: if isAdminOrOwner();
+    }
+
+    // Прогресс пользователя - пользователь может создавать/редактировать свой прогресс
+    match /user_progress/{progressId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdminOrOwner()
+      );
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdminOrOwner()
+      );
+      allow delete: if isAdminOrOwner();
+    }
+
+    // Категории курсов - все могут читать, только админы/владельцы управляют
+    match /course_categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow create: if isAdminOrOwner();
+      allow update: if isAdminOrOwner();
+      allow delete: if isAdminOrOwner();
+    }
+
+    // Экзамены - все могут читать, только админы/владельцы управляют
+    match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow create: if isAdminOrOwner();
+      allow update: if isAdminOrOwner();
+      allow delete: if isAdminOrOwner();
+    }
+
+    // Результаты экзаменов - студенты видят свои, админы все
+    match /exam_results/{resultId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdminOrOwner()
+      );
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdminOrOwner();
+      allow delete: if isAdminOrOwner();
+    }
+  }
+}

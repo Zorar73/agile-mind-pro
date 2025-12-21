@@ -37,6 +37,7 @@ import {
   FolderOpen,
   Add,
   Article,
+  School,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserContext } from '../../App';
@@ -102,6 +103,7 @@ function Sidebar({ open, onClose, boards = [], onCreateBoard }) {
     { title: 'Мои задачи', icon: <Assignment />, path: '/my-tasks', color: bauhaus.purple },
     { title: 'Команда', icon: <Group />, path: '/team', color: bauhaus.red },
     { title: 'Наброски', icon: <Description />, path: '/sketches', color: bauhaus.yellow },
+    { title: 'Обучение', icon: <School />, path: '/learning', color: bauhaus.teal },
     { title: 'Новости', icon: <Article />, path: '/news', color: bauhaus.teal },
     { title: 'Уведомления', icon: <Notifications />, path: '/notifications', color: bauhaus.blue },
   ];

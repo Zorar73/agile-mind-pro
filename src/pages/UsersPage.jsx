@@ -28,6 +28,7 @@ import {
   Skeleton,
   IconButton,
   useTheme,
+  Stack,
 } from '@mui/material';
 import {
   MoreVert,
@@ -40,6 +41,7 @@ import {
   Article,
   Lock,
   LockOpen,
+  School,
 } from '@mui/icons-material';
 import { UserContext } from '../App';
 import MainLayout from '../components/Layout/MainLayout';
@@ -188,6 +190,23 @@ function UsersPage() {
       setSelectedUser(null);
     } catch (error) {
       alert('Ошибка при изменении прав');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleToggleCoursesPermission = async () => {
+    if (!selectedUser) return;
+
+    setActionLoading(true);
+    try {
+      const newValue = !selectedUser.canCreateCourses;
+      await userService.updateUserPermissions(selectedUser.id, { canCreateCourses: newValue });
+      toast.success(`Права на создание курсов ${newValue ? 'предоставлены' : 'отозваны'}`);
+      loadUsers();
+    } catch (error) {
+      console.error('Error updating permissions:', error);
+      toast.error('Ошибка изменения прав');
     } finally {
       setActionLoading(false);
     }
@@ -664,21 +683,53 @@ function UsersPage() {
                     icon={selectedUser?.canCreateNews ? <LockOpen /> : <Lock />}
                   />
                 </Box>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <School color="primary" />
+                    <Box>
+                      <Typography variant="body1" fontWeight={600}>
+                        Создание курсов
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Разрешить пользователю создавать и управлять курсами обучения
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                      label={selectedUser?.canCreateCourses ? 'Разрешено' : 'Запрещено'}
+                      color={selectedUser?.canCreateCourses ? 'success' : 'default'}
+                      size="small"
+                      icon={selectedUser?.canCreateCourses ? <LockOpen /> : <Lock />}
+                    />
+                    <Button
+                      onClick={handleToggleCoursesPermission}
+                      variant="outlined"
+                      color={selectedUser?.canCreateCourses ? 'error' : 'success'}
+                      disabled={actionLoading}
+                      size="small"
+                      startIcon={selectedUser?.canCreateCourses ? <Lock /> : <LockOpen />}
+                    >
+                      {selectedUser?.canCreateCourses ? 'Запретить' : 'Разрешить'}
+                    </Button>
+                  </Stack>
+                </Box>
               </Box>
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setDialogOpen(false)} disabled={actionLoading} sx={{ borderRadius: 50 }}>
-                Отмена
-              </Button>
-              <Button
-                onClick={handleToggleNewsPermission}
-                variant="contained"
-                color={selectedUser?.canCreateNews ? 'error' : 'success'}
-                disabled={actionLoading}
-                startIcon={actionLoading ? <CircularProgress size={16} /> : selectedUser?.canCreateNews ? <Lock /> : <LockOpen />}
-                sx={{ borderRadius: 50 }}
-              >
-                {selectedUser?.canCreateNews ? 'Запретить' : 'Разрешить'}
+                Закрыть
               </Button>
             </DialogActions>
           </>
