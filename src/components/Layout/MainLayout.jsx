@@ -447,7 +447,7 @@ function MainLayout({ children, title, showAppBar = true }) {
         )}
 
         <Box sx={{
-          p: { xs: 2, sm: 3 },
+          p: { xs: 1, sm: 2, md: 3 },
           maxWidth: '100%',
           overflow: 'hidden',
         }}>

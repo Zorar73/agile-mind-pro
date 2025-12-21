@@ -186,7 +186,7 @@ function BoardFilters({
         open={Boolean(filterMenuAnchor)}
         onClose={() => setFilterMenuAnchor(null)}
         PaperProps={{
-          sx: { minWidth: 300, maxHeight: 500 }
+          sx: { minWidth: { xs: 280, sm: 300 }, maxHeight: 500, maxWidth: '95vw' }
         }}
       >
         {/* Мои задачи */}

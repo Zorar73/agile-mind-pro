@@ -191,21 +191,22 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
-                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>
-                    {settings.theme === 'dark' ? <DarkMode /> : <LightMode />}
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 0.5, sm: 0 }, py: { xs: 1, sm: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 32, sm: 56 } }}>
+                    {settings.theme === 'dark' ? <DarkMode fontSize="small" /> : <LightMode fontSize="small" />}
                   </ListItemIcon>
                   <ListItemText
-                    primary="Тема оформления"
-                    secondary="Выберите светлую, тёмную или системную тему"
+                    primary={<Typography variant="body2" fontWeight={600}>Тема оформления</Typography>}
+                    secondary={<Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Светлая, тёмная или системная</Typography>}
                   />
                 </Box>
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 }, mt: { xs: 0.5, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.theme}
                       onChange={(e) => handleSettingChange('theme', e.target.value)}
+                      sx={{ fontSize: { xs: '0.85rem', sm: '0.875rem' } }}
                     >
                       <MenuItem value="light">☀️ Светлая</MenuItem>
                       <MenuItem value="dark">🌙 Тёмная</MenuItem>
@@ -217,15 +218,16 @@ function SettingsPage() {
 
               <Divider component="li" />
 
-              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 0.5, sm: 0 }, py: { xs: 1, sm: 2 } }}>
                 <ListItemText
-                  primary="Компактный режим"
-                  secondary="Уменьшенные отступы для большей информации на экране"
+                  primary={<Typography variant="body2" fontWeight={600}>Компактный режим</Typography>}
+                  secondary={<Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Уменьшенные отступы</Typography>}
                 />
-                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ pl: { xs: 0, sm: 0 }, mt: { xs: 0.5, sm: 0 } }}>
                   <Switch
                     checked={settings.compactMode}
                     onChange={(e) => handleSettingChange('compactMode', e.target.checked)}
+                    size="small"
                   />
                 </Box>
               </ListItem>
@@ -245,23 +247,24 @@ function SettingsPage() {
             </Box>
             
             <List>
-              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 0 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
-                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}><Email /></ListItemIcon>
+              <ListItem sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 0.5, sm: 0 }, py: { xs: 1, sm: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}>
+                  <ListItemIcon sx={{ minWidth: { xs: 32, sm: 56 } }}><Email fontSize="small" /></ListItemIcon>
                   <ListItemText
-                    primary="Email уведомления"
-                    secondary="Получать уведомления на почту"
+                    primary={<Typography variant="body2" fontWeight={600}>Email уведомления</Typography>}
+                    secondary={<Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Получать уведомления на почту</Typography>}
                   />
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, pl: { xs: 0, sm: 0 }, mt: { xs: 0.5, sm: 0 } }}>
                   <IconButton
                     size="small"
                     onClick={() => setEmailDetailsExpanded(!emailDetailsExpanded)}
                     disabled={!settings.emailNotifications}
                   >
-                    {emailDetailsExpanded ? <ExpandLess /> : <ExpandMore />}
+                    {emailDetailsExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                   </IconButton>
                   <Switch
+                    size="small"
                     checked={settings.emailNotifications}
                     onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
                   />
@@ -377,7 +380,7 @@ function SettingsPage() {
                     }
                   />
                 </Box>
-                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ pl: { xs: 0, sm: 0 } }}>
                   <Switch
                     checked={settings.pushNotifications}
                     onChange={(e) => handleSettingChange('pushNotifications', e.target.checked)}
@@ -396,7 +399,7 @@ function SettingsPage() {
                     secondary="Напоминать о приближающихся дедлайнах"
                   />
                 </Box>
-                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ pl: { xs: 0, sm: 0 } }}>
                   <Switch
                     checked={settings.taskReminders}
                     onChange={(e) => handleSettingChange('taskReminders', e.target.checked)}
@@ -414,7 +417,7 @@ function SettingsPage() {
                     secondary="Сводка активности за неделю"
                   />
                 </Box>
-                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ pl: { xs: 0, sm: 0 } }}>
                   <Switch
                     checked={settings.weeklyDigest}
                     onChange={(e) => handleSettingChange('weeklyDigest', e.target.checked)}
@@ -432,7 +435,7 @@ function SettingsPage() {
                     secondary="Воспроизводить звук при получении уведомлений"
                   />
                 </Box>
-                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ pl: { xs: 0, sm: 0 } }}>
                   <Switch
                     checked={settings.soundNotifications}
                     onChange={(e) => handleSettingChange('soundNotifications', e.target.checked)}
@@ -445,9 +448,9 @@ function SettingsPage() {
                   <ListItemText
                     primary="Громкость звуков"
                     secondary={`${Math.round(settings.soundVolume * 100)}%`}
-                    sx={{ pl: { xs: 6, sm: 7 } }}
+                    sx={{ pl: { xs: 0, sm: 7 } }}
                   />
-                  <Box sx={{ width: { xs: '100%', sm: 200 }, pl: { xs: 6, sm: 0 } }}>
+                  <Box sx={{ width: { xs: '100%', sm: 200 }, pl: { xs: 0, sm: 0 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <VolumeOff fontSize="small" />
                       <input
@@ -486,7 +489,7 @@ function SettingsPage() {
                     secondary="При открытии списка задач"
                   />
                 </Box>
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.defaultTaskView}
@@ -508,7 +511,7 @@ function SettingsPage() {
                   primary="Приоритет по умолчанию"
                   secondary="Для новых задач"
                 />
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.defaultPriority}
@@ -533,7 +536,7 @@ function SettingsPage() {
                     secondary="Архивировать выполненные задачи через N дней (0 = отключено)"
                   />
                 </Box>
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 130 } }}>
                     <Select
                       value={settings.autoArchiveDays}
@@ -556,7 +559,7 @@ function SettingsPage() {
                   primary="Показывать выполненные"
                   secondary="Отображать завершённые задачи в списках"
                 />
-                <Box sx={{ pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ pl: { xs: 0, sm: 0 } }}>
                   <Switch
                     checked={settings.showCompletedTasks}
                     onChange={(e) => handleSettingChange('showCompletedTasks', e.target.checked)}
@@ -583,7 +586,7 @@ function SettingsPage() {
                   primary="Начало недели"
                   secondary="Первый день недели в календаре"
                 />
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.calendarStartDay}
@@ -603,7 +606,7 @@ function SettingsPage() {
                   primary="Масштаб по умолчанию"
                   secondary="При открытии календаря"
                 />
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.defaultCalendarView}
@@ -637,7 +640,7 @@ function SettingsPage() {
                   primary="Язык интерфейса"
                   secondary="Выберите язык приложения"
                 />
-                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 6, sm: 0 } }}>
+                <Box sx={{ width: { xs: '100%', sm: 'auto' }, pl: { xs: 0, sm: 0 } }}>
                   <FormControl size="small" fullWidth sx={{ maxWidth: { xs: '100%', sm: 150 } }}>
                     <Select
                       value={settings.language}

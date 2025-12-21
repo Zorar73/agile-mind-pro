@@ -127,7 +127,7 @@ function LearningPortalPage() {
           py: { xs: 3, md: 6 },
           mb: 4,
           borderRadius: 4,
-          px: { xs: 2, sm: 3 },
+          px: { xs: 1, sm: 2, md: 3 },
         }}
       >
         <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
@@ -247,7 +247,7 @@ function LearningPortalPage() {
         </Box>
       </Box>
 
-      <Box sx={{ px: { xs: 2, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
+      <Box sx={{ px: { xs: 1, sm: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
         {/* Categories */}
         <Box sx={{ mb: 4 }}>
           <Tabs

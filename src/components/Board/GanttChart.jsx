@@ -157,7 +157,8 @@ function GanttChart({ tasks, users }) {
         </Typography>
 
         {/* Временная шкала */}
-        <Box sx={{ minWidth: 1200 }}>
+        <Box sx={{ overflowX: 'auto', width: '100%', pb: 1 }}>
+        <Box sx={{ minWidth: { xs: 800, sm: 1000, md: 1200 } }}>
           {/* Заголовки недель */}
           <Box sx={{ display: 'flex', borderBottom: 2, borderColor: 'divider', mb: 1 }}>
             {weeks.map((week, index) => {
@@ -320,6 +321,7 @@ function GanttChart({ tasks, users }) {
               );
             })}
           </Box>
+        </Box>
         </Box>
 
         {/* Легенда */}
