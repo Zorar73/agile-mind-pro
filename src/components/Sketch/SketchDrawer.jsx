@@ -55,6 +55,7 @@ import { UserContext } from '../../App';
 import sketchService from '../../services/sketch.service';
 import userService from '../../services/user.service';
 import teamService from '../../services/team.service';
+import boardService from '../../services/board.service';
 import aiService from '../../services/ai.service';
 import CommentInput from '../Common/CommentInput';
 import ThreadedComment from '../Common/ThreadedComment';
@@ -260,15 +261,32 @@ function SketchDrawer({ open, onClose, sketchId, drawerId }) {
     setAiTasks([]);
 
     try {
-      // Собираем контекст: заголовок, контент и комментарии
+      // Собираем контекст: заголовок, контент и комментарии с именами авторов
       const commentsText = comments.map(c => {
         const u = commentUsers[c.userId];
-        return `${u?.firstName || 'Пользователь'}: ${c.text}`;
+        const userName = u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email : 'Пользователь';
+        return `${userName} (ID: ${c.userId}): ${c.text}`;
       }).join('\n');
 
       const fullContext = `${sketch.title}\n\n${sketch.content || ''}\n\nКомментарии:\n${commentsText}`;
 
-      const result = await aiService.sketchToTasks(sketch.title, fullContext);
+      // Загружаем доски пользователя для контекста
+      let boards = [];
+      try {
+        const boardsResult = await boardService.getUserBoards(user.uid);
+        if (boardsResult.success) {
+          boards = boardsResult.boards;
+        }
+      } catch (e) {
+        console.warn('Could not load boards for AI context:', e);
+      }
+
+      // Передаём полный контекст: пользователи, доски, автор наброска
+      const result = await aiService.sketchToTasks(sketch.title, fullContext, {
+        users: allUsers,
+        boards,
+        author: author || { id: user.uid, firstName: user.firstName, lastName: user.lastName, email: user.email }
+      });
 
       if (result.success && result.tasks) {
         setAiTasks(result.tasks);
@@ -639,6 +657,7 @@ function SketchDrawer({ open, onClose, sketchId, drawerId }) {
         aiTasks={aiTasks}
         generating={aiGenerating}
         error={aiError}
+        onRegenerate={handleConvertToTasks}
         onTasksCreated={(createdTasks) => {
           toast.success(
             `Создано ${createdTasks.length} ${createdTasks.length === 1 ? 'задача' : createdTasks.length < 5 ? 'задачи' : 'задач'} из наброска!`,

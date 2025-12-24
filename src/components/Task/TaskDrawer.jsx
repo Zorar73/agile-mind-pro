@@ -126,8 +126,15 @@ function TaskDrawer({ taskId, open = true, onClose, drawerId }) {
       }
 
       if (taskRes.task.boardId) {
-        const boardRes = await boardService.getBoard(taskRes.task.boardId);
-        if (boardRes.success) setColumns(boardRes.board.columns || []);
+        const columnsRes = await boardService.getColumns(taskRes.task.boardId);
+        if (columnsRes.success) {
+          console.log('📊 Загружены колонки для Task Drawer:', columnsRes.columns.length, 'колонок');
+          setColumns(columnsRes.columns);
+        } else {
+          console.warn('⚠️ Не удалось загрузить колонки для задачи');
+        }
+      } else {
+        console.warn('⚠️ У задачи нет boardId');
       }
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -264,6 +271,36 @@ function TaskDrawer({ taskId, open = true, onClose, drawerId }) {
                 </Box>
                 <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}><MoreVert /></IconButton>
               </Box>
+
+              {/* Visual Status and Priority Chips */}
+              <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}>
+                {/* Current Status Chip */}
+                {columns.length > 0 && taskData.columnId && columns.find(c => c.id === taskData.columnId) && (
+                  <Chip
+                    label={columns.find(c => c.id === taskData.columnId).title}
+                    size="small"
+                    sx={{
+                      bgcolor: columns.find(c => c.id === taskData.columnId).color || '#9E9E9E',
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                    }}
+                  />
+                )}
+                {/* Priority Chip */}
+                <Chip
+                  icon={<Flag sx={{ color: 'white !important' }} />}
+                  label={PRIORITY_CONFIG[taskData.priority || 'normal'].label}
+                  size="small"
+                  sx={{
+                    bgcolor: PRIORITY_CONFIG[taskData.priority || 'normal'].color,
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    '& .MuiChip-icon': { color: 'white' }
+                  }}
+                />
+              </Stack>
             </Box>
             {/* FIELDS IN 2 COLUMNS */}
             <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 3 }}>
@@ -290,12 +327,34 @@ function TaskDrawer({ taskId, open = true, onClose, drawerId }) {
               {/* Priority */}
               <FormControl fullWidth size="small">
                 <InputLabel>Приоритет</InputLabel>
-                <Select value={taskData.priority || "normal"} onChange={(e) => handleUpdateField("priority", e.target.value)} label="Приоритет" sx={fieldSx}>
+                <Select
+                  value={taskData.priority || "normal"}
+                  onChange={(e) => handleUpdateField("priority", e.target.value)}
+                  label="Приоритет"
+                  sx={{
+                    ...fieldSx,
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }
+                  }}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Flag sx={{ color: PRIORITY_CONFIG[selected].color, fontSize: 18 }} />
+                      <Typography sx={{ color: PRIORITY_CONFIG[selected].color, fontWeight: 600 }}>
+                        {PRIORITY_CONFIG[selected].label}
+                      </Typography>
+                    </Box>
+                  )}
+                >
                   {Object.entries(PRIORITY_CONFIG).map(([key, { label, color }]) => (
                     <MenuItem key={key} value={key}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Flag sx={{ color, fontSize: 18 }} />
-                        {label}
+                        <Typography sx={{ color, fontWeight: 600 }}>
+                          {label}
+                        </Typography>
                       </Box>
                     </MenuItem>
                   ))}

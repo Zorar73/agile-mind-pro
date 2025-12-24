@@ -1,5 +1,5 @@
 // src/components/Notifications/NotificationCenter.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   IconButton,
   Badge,
@@ -29,91 +29,19 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../../App.jsx';
 import notificationService from '../../services/notification.service';
+import { useNotifications } from '../../contexts/NotificationProvider';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { useToast } from '../../contexts/ToastContext';
-import soundNotifications from '../../utils/soundNotifications';
-import browserPush from '../../utils/browserPushNotifications';
 
 function NotificationCenter() {
   const { user } = useContext(UserContext);
   const navigate = useNavigate();
-  const toast = useToast();
+  
+  // Используем данные из NotificationProvider - единый источник правды
+  const { notifications, unreadCount } = useNotifications();
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [activeTab, setActiveTab] = useState(0); // 0 = Свежие, 1 = Просмотренные
-  const [previousNotificationIds, setPreviousNotificationIds] = useState(new Set());
-
-  useEffect(() => {
-    if (!user) return;
-
-    const unsubscribe = notificationService.subscribeToUserNotifications(
-      user.uid,
-      (updatedNotifications) => {
-        // Проверяем, есть ли новые уведомления
-        const newNotifications = updatedNotifications.filter(n => !previousNotificationIds.has(n.id) && !n.read);
-
-        // Показываем toast для новых уведомлений
-        newNotifications.forEach(notification => {
-          // Воспроизводим специальный звук для упоминаний
-          if (notification.type === 'task_mention') {
-            soundNotifications.mention();
-          } else {
-            soundNotifications.notification();
-          }
-
-          // Показываем toast если окно активно, иначе browser push
-          if (document.hasFocus()) {
-            toast.info(notification.message, {
-              title: notification.title,
-              duration: 5000,
-            });
-          } else {
-            // Показываем browser push если окно не в фокусе
-            const onClick = () => {
-              if (notification.link) {
-                navigate(notification.link);
-              }
-            };
-
-            switch (notification.type) {
-              case 'task_assigned':
-                browserPush.taskAssigned(notification.message, '', onClick);
-                break;
-              case 'task_comment':
-                browserPush.taskComment(notification.message, '', onClick);
-                break;
-              case 'task_mention':
-                browserPush.taskMention(notification.message, '', onClick);
-                break;
-              case 'task_deadline':
-                browserPush.taskDeadline(notification.message, onClick);
-                break;
-              case 'user_approved':
-                browserPush.userApproved(onClick);
-                break;
-              case 'board_invitation':
-                browserPush.boardInvitation(notification.message, '', onClick);
-                break;
-              default:
-                browserPush.generic(notification.title, notification.message, onClick);
-            }
-          }
-        });
-
-        // Обновляем список ID уведомлений
-        setPreviousNotificationIds(new Set(updatedNotifications.map(n => n.id)));
-
-        setNotifications(updatedNotifications);
-        const unread = updatedNotifications.filter(n => !n.read).length;
-        setUnreadCount(unread);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, previousNotificationIds, toast]);
 
   const handleOpen = (event) => {
     setAnchorEl(event.currentTarget);

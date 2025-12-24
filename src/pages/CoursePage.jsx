@@ -231,6 +231,7 @@ function CoursePage() {
                         )}
                       </ListItemIcon>
                       <ListItemText
+                        disableTypography
                         primary={
                           <Typography variant="subtitle1" fontWeight={600}>
                             {index + 1}. {lesson.title}
@@ -315,6 +316,7 @@ function CoursePage() {
                           />
                         </ListItemIcon>
                         <ListItemText
+                          disableTypography
                           primary={
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
                               <Typography variant="subtitle1" fontWeight={600}>

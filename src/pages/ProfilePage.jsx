@@ -17,6 +17,8 @@ import {
   Tooltip,
   useTheme,
   Paper,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Edit,
@@ -39,6 +41,11 @@ import {
   MilitaryTech,
   Verified,
   AutoAwesome,
+  School,
+  MenuBook,
+  Bolt,
+  LocalLibrary,
+  GradeOutlined,
 } from '@mui/icons-material';
 import MainLayout from '../components/Layout/MainLayout';
 import { UserContext } from '../App';
@@ -46,11 +53,13 @@ import userService from '../services/user.service';
 import taskService from '../services/task.service';
 import boardService from '../services/board.service';
 import teamService from '../services/team.service';
+import learningService from '../services/learning.service';
 import AvatarSelector from '../components/Profile/AvatarSelector';
+import CertificatesSection from '../components/Learning/CertificatesSection';
 import { gradients, statusColors } from '../theme';
 
 // Конфигурация достижений
-const ACHIEVEMENTS = [
+const TASK_ACHIEVEMENTS = [
   {
     id: 'first_task',
     title: 'Первые шаги',
@@ -117,6 +126,67 @@ const ACHIEVEMENTS = [
   },
 ];
 
+const LEARNING_ACHIEVEMENTS = [
+  {
+    id: 'first_course',
+    title: 'Студент',
+    description: 'Завершите первый курс',
+    icon: School,
+    color: '#1E88E5',
+    condition: (stats) => stats.completedCourses >= 1,
+  },
+  {
+    id: 'course_master_3',
+    title: 'Ученик',
+    description: 'Завершите 3 курса',
+    icon: MenuBook,
+    color: '#26A69A',
+    condition: (stats) => stats.completedCourses >= 3,
+  },
+  {
+    id: 'course_master_5',
+    title: 'Знаток',
+    description: 'Завершите 5 курсов',
+    icon: LocalLibrary,
+    color: '#7E57C2',
+    condition: (stats) => stats.completedCourses >= 5,
+  },
+  {
+    id: 'course_master_10',
+    title: 'Эксперт',
+    description: 'Завершите 10 курсов',
+    icon: WorkspacePremium,
+    color: '#FF9800',
+    condition: (stats) => stats.completedCourses >= 10,
+  },
+  {
+    id: 'perfect_exam',
+    title: 'Отличник',
+    description: 'Получите 100% на экзамене',
+    icon: GradeOutlined,
+    color: '#FFD700',
+    condition: (stats) => stats.perfectExams >= 1,
+  },
+  {
+    id: 'quick_learner',
+    title: 'Быстрый ученик',
+    description: 'Завершите курс за 1 день',
+    icon: Bolt,
+    color: '#FF5722',
+    condition: (stats) => stats.quickCourses >= 1,
+  },
+  {
+    id: 'no_missed_deadlines',
+    title: 'Дисциплина',
+    description: 'Завершите все курсы до дедлайна',
+    icon: Schedule,
+    color: '#00BCD4',
+    condition: (stats) => stats.completedCourses >= 1 && stats.overdueCoursesCompleted === 0,
+  },
+];
+
+const ALL_ACHIEVEMENTS = [...TASK_ACHIEVEMENTS, ...LEARNING_ACHIEVEMENTS];
+
 function ProfilePage() {
   const { user, setUser } = useContext(UserContext);
   const theme = useTheme();
@@ -125,6 +195,7 @@ function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [avatarSelectorOpen, setAvatarSelectorOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [achievementsTab, setAchievementsTab] = useState('tasks');
   const [stats, setStats] = useState({
     totalTasks: 0,
     completedTasks: 0,
@@ -134,6 +205,12 @@ function ProfilePage() {
     boardsCount: 0,
     weeklyCompleted: 0,
     completionRate: 0,
+    // Learning stats
+    completedCourses: 0,
+    inProgressCourses: 0,
+    perfectExams: 0,
+    quickCourses: 0,
+    overdueCoursesCompleted: 0,
   });
   
   const [editData, setEditData] = useState({
@@ -157,13 +234,13 @@ function ProfilePage() {
       // Загружаем доски пользователя
       const boardsResult = await boardService.getUserBoards(user.uid);
       const boards = boardsResult.success ? boardsResult.boards : [];
-      
+
       let totalTasks = 0;
       let completedTasks = 0;
       let activeTasks = 0;
       let overdueTasks = 0;
       let weeklyCompleted = 0;
-      
+
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -174,14 +251,14 @@ function ProfilePage() {
           tasksResult.tasks.forEach(task => {
             if (task.members && task.members[user.uid]) {
               totalTasks++;
-              
+
               if (task.status === 'done') {
                 completedTasks++;
-                
+
                 // Проверяем выполнено ли за эту неделю
                 if (task.completedAt) {
-                  const completedDate = task.completedAt instanceof Date 
-                    ? task.completedAt 
+                  const completedDate = task.completedAt instanceof Date
+                    ? task.completedAt
                     : task.completedAt.toDate?.() || new Date(task.completedAt);
                   if (completedDate > oneWeekAgo) {
                     weeklyCompleted++;
@@ -189,11 +266,11 @@ function ProfilePage() {
                 }
               } else {
                 activeTasks++;
-                
+
                 // Проверяем просрочку
                 if (task.dueDate) {
-                  const dueDate = task.dueDate instanceof Date 
-                    ? task.dueDate 
+                  const dueDate = task.dueDate instanceof Date
+                    ? task.dueDate
                     : task.dueDate.toDate?.() || new Date(task.dueDate);
                   if (dueDate < new Date()) {
                     overdueTasks++;
@@ -208,10 +285,70 @@ function ProfilePage() {
       // Загружаем команды
       const teamsResult = await teamService.getUserTeams(user.uid);
       const teamsCount = teamsResult.success ? teamsResult.teams.length : 0;
+      const userTeams = teamsResult.success ? teamsResult.teams : [];
 
-      const completionRate = totalTasks > 0 
-        ? Math.round((completedTasks / totalTasks) * 100) 
+      const completionRate = totalTasks > 0
+        ? Math.round((completedTasks / totalTasks) * 100)
         : 0;
+
+      // Загружаем статистику по курсам
+      let completedCourses = 0;
+      let inProgressCourses = 0;
+      let perfectExams = 0;
+      let quickCourses = 0;
+      let overdueCoursesCompleted = 0;
+
+      const coursesResult = await learningService.getUserCoursesWithProgress(user.uid, userTeams, user.roleId);
+      if (coursesResult.success) {
+        coursesResult.courses.forEach(course => {
+          const progress = course.userProgress?.progress || 0;
+
+          if (progress === 100) {
+            completedCourses++;
+
+            // Проверяем, был ли курс завершен за 1 день
+            if (course.userProgress?.startedAt && course.userProgress?.completedAt) {
+              const startDate = course.userProgress.startedAt?.toDate?.() || new Date(course.userProgress.startedAt);
+              const endDate = course.userProgress.completedAt?.toDate?.() || new Date(course.userProgress.completedAt);
+              const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+              if (daysDiff <= 1) {
+                quickCourses++;
+              }
+            }
+
+            // Проверяем, был ли курс завершен после дедлайна
+            if (course.isRequired && course.deadline && course.userProgress?.completedAt) {
+              let deadlineDate = null;
+              if (course.deadline.type === 'fixed_date') {
+                deadlineDate = course.deadline.value?.toDate?.() || new Date(course.deadline.value);
+              } else if (course.deadline.type === 'days_after_assign' && course.userProgress.startedAt) {
+                const startDate = course.userProgress.startedAt?.toDate?.() || new Date(course.userProgress.startedAt);
+                deadlineDate = new Date(startDate);
+                deadlineDate.setDate(deadlineDate.getDate() + course.deadline.value);
+              }
+
+              if (deadlineDate) {
+                const completedDate = course.userProgress.completedAt?.toDate?.() || new Date(course.userProgress.completedAt);
+                if (completedDate > deadlineDate) {
+                  overdueCoursesCompleted++;
+                }
+              }
+            }
+          } else if (progress > 0 && progress < 100) {
+            inProgressCourses++;
+          }
+        });
+      }
+
+      // Загружаем статистику по экзаменам
+      const examsResult = await learningService.getUserExamResults(user.uid);
+      if (examsResult.success && examsResult.results) {
+        examsResult.results.forEach(result => {
+          if (result.score === 100 || result.percentage === 100) {
+            perfectExams++;
+          }
+        });
+      }
 
       setStats({
         totalTasks,
@@ -222,6 +359,11 @@ function ProfilePage() {
         boardsCount: boards.length,
         weeklyCompleted,
         completionRate,
+        completedCourses,
+        inProgressCourses,
+        perfectExams,
+        quickCourses,
+        overdueCoursesCompleted,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -261,9 +403,13 @@ function ProfilePage() {
     setUser({ ...user, avatar });
   };
 
-  // Получаем разблокированные достижения
-  const unlockedAchievements = ACHIEVEMENTS.filter(a => a.condition(stats));
-  const lockedAchievements = ACHIEVEMENTS.filter(a => !a.condition(stats));
+  // Получаем достижения в зависимости от выбранного таба
+  const currentAchievements = achievementsTab === 'tasks' ? TASK_ACHIEVEMENTS : LEARNING_ACHIEVEMENTS;
+  const unlockedAchievements = currentAchievements.filter(a => a.condition(stats));
+  const lockedAchievements = currentAchievements.filter(a => !a.condition(stats));
+
+  // Общее количество достижений
+  const totalUnlocked = ALL_ACHIEVEMENTS.filter(a => a.condition(stats)).length;
 
   const avatarProps = getAvatarProps();
 
@@ -650,10 +796,32 @@ function ProfilePage() {
                       Достижения
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {unlockedAchievements.length} из {ACHIEVEMENTS.length} разблокировано
+                      {totalUnlocked} из {ALL_ACHIEVEMENTS.length} разблокировано
                     </Typography>
                   </Box>
                 </Box>
+
+                {/* Tabs */}
+                <Tabs
+                  value={achievementsTab}
+                  onChange={(e, newValue) => setAchievementsTab(newValue)}
+                  sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+                >
+                  <Tab
+                    value="tasks"
+                    label="Задачи"
+                    icon={<Assignment />}
+                    iconPosition="start"
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    value="learning"
+                    label="Обучение"
+                    icon={<School />}
+                    iconPosition="start"
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                </Tabs>
 
                 {/* Разблокированные */}
                 {unlockedAchievements.length > 0 && (
@@ -665,8 +833,8 @@ function ProfilePage() {
                       {unlockedAchievements.map((achievement) => {
                         const Icon = achievement.icon;
                         return (
-                          <Tooltip 
-                            key={achievement.id} 
+                          <Tooltip
+                            key={achievement.id}
                             title={achievement.description}
                             arrow
                           >
@@ -697,8 +865,8 @@ function ProfilePage() {
                       {lockedAchievements.map((achievement) => {
                         const Icon = achievement.icon;
                         return (
-                          <Tooltip 
-                            key={achievement.id} 
+                          <Tooltip
+                            key={achievement.id}
                             title={achievement.description}
                             arrow
                           >
@@ -719,6 +887,9 @@ function ProfilePage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Сертификаты */}
+            <CertificatesSection />
           </Grid>
         </Grid>
 

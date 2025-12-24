@@ -1,3 +1,14 @@
+===============================================
+ПРАВИЛА С ОБРАТНОЙ СОВМЕСТИМОСТЬЮ
+===============================================
+
+Эти правила работают И с новой системой ролей (roleId),
+И со старой (role: 'admin', 'member', 'pending')
+
+СКОПИРУЙ ВСЁ НИЖЕ В FIREBASE CONSOLE
+
+===============================================
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -12,15 +23,42 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
+    }
+
+    function getUserRoleId() {
+      let userData = getUserData();
+      return userData != null ? userData.roleId : null;
+    }
+
+    function getUserRoleData() {
+      let roleId = getUserRoleId();
+      let rolePath = /databases/$(database)/documents/roles/$(roleId);
+      return roleId != null && exists(rolePath) ? get(rolePath).data : null;
+    }
+
+    function hasModuleAccess(module, requiredLevel) {
+      let roleData = getUserRoleData();
+      let userLevel = roleData != null && module in roleData.modules ? roleData.modules[module] : 'none';
+      let levels = ['none', 'view', 'edit', 'admin'];
+      let userLevelIndex = levels.indexOf(userLevel);
+      let requiredLevelIndex = levels.indexOf(requiredLevel);
+      return roleData != null && userLevel != 'none' && userLevelIndex >= requiredLevelIndex;
+    }
+
+    function isSystemAdmin() {
+      let roleData = getUserRoleData();
+      return roleData != null && roleData.isSystem == true && getUserRoleId() == 'admin';
     }
 
     function getUserRole() {
-      return getUserData().role;
+      let userData = getUserData();
+      return userData != null ? userData.role : null;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
+      return isSignedIn() && (getUserRole() == 'admin' || isSystemAdmin());
     }
 
     function isOwner() {
@@ -35,15 +73,34 @@ service cloud.firestore {
       return isSignedIn() && getUserRole() != 'pending';
     }
 
+    // НОВАЯ ФУНКЦИЯ: проверка доступа с фоллбэком на старую систему
+    function canAccess(module, requiredLevel) {
+      return hasModuleAccess(module, requiredLevel) || isApproved();
+    }
+
+    // =====================
+    // ROLES
+    // =====================
+
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdminOrOwner() || getUserRoleId() == 'admin';
+      allow delete: if (isAdminOrOwner() || getUserRoleId() == 'admin') && resource.data.isSystem != true;
+    }
+
     // =====================
     // USERS
     // =====================
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if true;
-      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin();
+      allow create: if isSignedIn() && (
+        request.auth.uid == userId || isAdminOrOwner() || getUserRoleId() == 'admin'
+      );
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || isAdminOrOwner() || getUserRoleId() == 'admin'
+      );
+      allow delete: if isAdminOrOwner() || getUserRoleId() == 'admin';
     }
 
     match /userSettings/{userId} {
@@ -55,23 +112,26 @@ service cloud.firestore {
     // =====================
 
     match /boards/{boardId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && (
+      allow list: if isSignedIn() && canAccess('boards', 'view');
+      allow get: if isSignedIn() && canAccess('boards', 'view') && (
         resource.data.isPublic == true ||
         resource.data.members[request.auth.uid] != null
       );
-      allow create: if isApproved();
-      allow update: if isSignedIn() && (
+      allow create: if isSignedIn() && canAccess('boards', 'edit');
+      allow update: if isSignedIn() && canAccess('boards', 'edit') && (
         resource.data.members[request.auth.uid] in ['owner', 'admin']
       );
-      allow delete: if isSignedIn() && resource.data.members[request.auth.uid] == 'owner';
+      allow delete: if isSignedIn() && (
+        hasModuleAccess('boards', 'admin') ||
+        (canAccess('boards', 'edit') && resource.data.members[request.auth.uid] == 'owner')
+      );
 
       match /columns/{columnId} {
-        allow read: if isSignedIn() && (
+        allow read: if isSignedIn() && canAccess('boards', 'view') && (
           get(/databases/$(database)/documents/boards/$(boardId)).data.isPublic == true ||
           get(/databases/$(database)/documents/boards/$(boardId)).data.members[request.auth.uid] != null
         );
-        allow write: if isSignedIn() && (
+        allow write: if isSignedIn() && canAccess('boards', 'edit') && (
           get(/databases/$(database)/documents/boards/$(boardId)).data.members[request.auth.uid] in ['owner', 'admin', 'editor']
         );
       }
@@ -82,32 +142,35 @@ service cloud.firestore {
     // =====================
 
     match /tasks/{taskId} {
-      allow list, get: if isSignedIn();
-      allow create: if isApproved();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow list, get: if isSignedIn() && canAccess('tasks', 'view');
+      allow create: if isSignedIn() && canAccess('tasks', 'edit');
+      allow update: if isSignedIn() && canAccess('tasks', 'edit');
+      allow delete: if isSignedIn() && (
+        hasModuleAccess('tasks', 'admin') ||
+        (canAccess('tasks', 'edit') && resource.data.createdBy == request.auth.uid)
+      );
 
       match /comments/{commentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
+        allow read: if isSignedIn() && canAccess('tasks', 'view');
+        allow create: if isSignedIn() && canAccess('tasks', 'view');
         allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
         allow delete: if isSignedIn() && (
-          resource.data.userId == request.auth.uid || isAdmin()
+          resource.data.userId == request.auth.uid || isSystemAdmin()
         );
 
         match /replies/{replyId} {
-          allow read: if isSignedIn();
-          allow create: if isSignedIn();
+          allow read: if isSignedIn() && canAccess('tasks', 'view');
+          allow create: if isSignedIn() && canAccess('tasks', 'view');
           allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
           allow delete: if isSignedIn() && (
-            resource.data.userId == request.auth.uid || isAdmin()
+            resource.data.userId == request.auth.uid || isSystemAdmin()
           );
         }
       }
 
       match /subtasks/{subtaskId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isSignedIn();
+        allow read: if isSignedIn() && canAccess('tasks', 'view');
+        allow create, update, delete: if isSignedIn() && canAccess('tasks', 'edit');
       }
     }
 
@@ -116,14 +179,21 @@ service cloud.firestore {
     // =====================
 
     match /teams/{teamId} {
-      allow list, get: if isSignedIn();
-      allow create: if isApproved();
-      allow update: if isSignedIn() && resource.data.members[request.auth.uid] in ['leader', 'admin'];
-      allow delete: if isSignedIn() && resource.data.leader == request.auth.uid;
+      allow list, get: if isSignedIn() && canAccess('teams', 'view');
+      allow create: if isSignedIn() && canAccess('teams', 'edit');
+      allow update: if isSignedIn() && canAccess('teams', 'edit') && (
+        resource.data.members[request.auth.uid] in ['leader', 'admin']
+      );
+      allow delete: if isSignedIn() && (
+        hasModuleAccess('teams', 'admin') ||
+        (canAccess('teams', 'edit') && resource.data.leader == request.auth.uid)
+      );
 
       match /messages/{messageId} {
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
-        allow create: if isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
+        allow read: if isSignedIn() && canAccess('teams', 'view') &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
+        allow create: if isSignedIn() && canAccess('teams', 'view') &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
         allow update: if isSignedIn() && resource.data.senderId == request.auth.uid;
         allow delete: if isSignedIn() && (
           resource.data.senderId == request.auth.uid ||
@@ -137,30 +207,34 @@ service cloud.firestore {
     // =====================
 
     match /sketches/{sketchId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && (
+      allow list: if isSignedIn() && canAccess('sketches', 'view');
+      allow get: if isSignedIn() && canAccess('sketches', 'view') && (
         resource.data.authorId == request.auth.uid ||
         request.auth.uid in resource.data.sharedWith.users ||
-        exists(/databases/$(database)/documents/teams/$(resource.data.sharedWith.teams[0])/members/$(request.auth.uid))
+        exists(/databases/$(database)/documents/teams/$(resource.data.sharedWith.teams[0]))
       );
-      allow create: if isApproved();
-      allow update: if isSignedIn() && resource.data.authorId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow create: if isSignedIn() && canAccess('sketches', 'edit');
+      allow update: if isSignedIn() && canAccess('sketches', 'edit') &&
+        resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn() && (
+        hasModuleAccess('sketches', 'admin') ||
+        (canAccess('sketches', 'edit') && resource.data.authorId == request.auth.uid)
+      );
 
       match /comments/{commentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
+        allow read: if isSignedIn() && canAccess('sketches', 'view');
+        allow create: if isSignedIn() && canAccess('sketches', 'view');
         allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
         allow delete: if isSignedIn() && (
-          resource.data.userId == request.auth.uid || isAdmin()
+          resource.data.userId == request.auth.uid || isSystemAdmin()
         );
 
         match /replies/{replyId} {
-          allow read: if isSignedIn();
-          allow create: if isSignedIn();
+          allow read: if isSignedIn() && canAccess('sketches', 'view');
+          allow create: if isSignedIn() && canAccess('sketches', 'view');
           allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
           allow delete: if isSignedIn() && (
-            resource.data.userId == request.auth.uid || isAdmin()
+            resource.data.userId == request.auth.uid || isSystemAdmin()
           );
         }
       }
@@ -171,32 +245,48 @@ service cloud.firestore {
     // =====================
 
     match /news/{newsId} {
-      allow list, get: if isSignedIn();
-      allow create: if isSignedIn() && (isAdmin() || getUserData().canCreateNews == true);
+      allow list, get: if isSignedIn() && canAccess('news', 'view');
+      allow create: if isSignedIn() && canAccess('news', 'edit');
       allow update: if isSignedIn() && (
-        resource.data.authorId == request.auth.uid || isAdmin()
+        hasModuleAccess('news', 'admin') ||
+        (canAccess('news', 'edit') && resource.data.authorId == request.auth.uid)
       );
       allow delete: if isSignedIn() && (
-        resource.data.authorId == request.auth.uid || isAdmin()
+        hasModuleAccess('news', 'admin') ||
+        (canAccess('news', 'edit') && resource.data.authorId == request.auth.uid)
       );
 
       match /comments/{commentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
+        allow read: if isSignedIn() && canAccess('news', 'view');
+        allow create: if isSignedIn() && canAccess('news', 'view');
         allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
         allow delete: if isSignedIn() && (
-          resource.data.userId == request.auth.uid || isAdmin()
+          resource.data.userId == request.auth.uid || isSystemAdmin()
         );
 
         match /replies/{replyId} {
-          allow read: if isSignedIn();
-          allow create: if isSignedIn();
+          allow read: if isSignedIn() && canAccess('news', 'view');
+          allow create: if isSignedIn() && canAccess('news', 'view');
           allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
           allow delete: if isSignedIn() && (
-            resource.data.userId == request.auth.uid || isAdmin()
+            resource.data.userId == request.auth.uid || isSystemAdmin()
           );
         }
       }
+    }
+
+    // =====================
+    // CALENDAR
+    // =====================
+
+    match /calendar/{eventId} {
+      allow list, get: if isSignedIn() && canAccess('calendar', 'view');
+      allow create: if isSignedIn() && canAccess('calendar', 'edit');
+      allow update: if isSignedIn() && canAccess('calendar', 'edit');
+      allow delete: if isSignedIn() && (
+        hasModuleAccess('calendar', 'admin') ||
+        (canAccess('calendar', 'edit') && resource.data.createdBy == request.auth.uid)
+      );
     }
 
     // =====================
@@ -215,68 +305,123 @@ service cloud.firestore {
     // =====================
 
     match /sprints/{sprintId} {
-      allow list, get: if isSignedIn();
-      allow create: if isApproved();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow list, get: if isSignedIn() && canAccess('sprints', 'view');
+      allow create: if isSignedIn() && canAccess('sprints', 'edit');
+      allow update: if isSignedIn() && canAccess('sprints', 'edit');
+      allow delete: if isSignedIn() && (
+        hasModuleAccess('sprints', 'admin') ||
+        (canAccess('sprints', 'edit') && resource.data.createdBy == request.auth.uid)
+      );
     }
 
     // =====================
     // LEARNING SYSTEM
     // =====================
 
-    // Курсы - все могут читать, только админы/владельцы управляют
     match /courses/{courseId} {
-      allow read: if isSignedIn();
-      allow create: if isAdminOrOwner();
-      allow update: if isAdminOrOwner();
-      allow delete: if isAdminOrOwner();
+      allow read: if isSignedIn() && canAccess('learning', 'view');
+      allow create: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow update: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
     }
 
-    // Уроки - все могут читать, только админы/владельцы управляют
     match /lessons/{lessonId} {
-      allow read: if isSignedIn();
-      allow create: if isAdminOrOwner();
-      allow update: if isAdminOrOwner();
-      allow delete: if isAdminOrOwner();
+      allow read: if isSignedIn() && canAccess('learning', 'view');
+      allow create: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow update: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
     }
 
-    // Прогресс пользователя - пользователь может создавать/редактировать свой прогресс
     match /user_progress/{progressId} {
       allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isAdminOrOwner()
+        resource.data.userId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('learning', 'admin')
       );
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isAdminOrOwner()
+        resource.data.userId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('learning', 'admin')
       );
-      allow delete: if isAdminOrOwner();
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
     }
 
-    // Категории курсов - все могут читать, только админы/владельцы управляют
+    match /course_enrollments/{enrollmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('learning', 'admin')
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('learning', 'admin')
+      );
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+    }
+
     match /course_categories/{categoryId} {
       allow read: if isSignedIn();
-      allow create: if isAdminOrOwner();
-      allow update: if isAdminOrOwner();
-      allow delete: if isAdminOrOwner();
+      allow create: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow update: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
     }
 
-    // Экзамены - все могут читать, только админы/владельцы управляют
     match /exams/{examId} {
       allow read: if isSignedIn();
-      allow create: if isAdminOrOwner();
-      allow update: if isAdminOrOwner();
-      allow delete: if isAdminOrOwner();
+      allow create: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow update: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
     }
 
-    // Результаты экзаменов - студенты видят свои, админы все
     match /exam_results/{resultId} {
       allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isAdminOrOwner()
+        resource.data.userId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('learning', 'admin')
       );
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdminOrOwner();
-      allow delete: if isAdminOrOwner();
+      allow update: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+    }
+
+    match /certificates/{certificateId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('learning', 'admin')
+      );
+      allow create: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow update: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('learning', 'admin');
+    }
+
+    // =====================
+    // KNOWLEDGE BASE
+    // =====================
+
+    match /knowledge/{articleId} {
+      allow read: if isSignedIn() && canAccess('knowledge', 'view');
+      allow create: if isSignedIn() && canAccess('knowledge', 'edit');
+      allow update: if isSignedIn() && canAccess('knowledge', 'edit');
+      allow delete: if isAdminOrOwner() || hasModuleAccess('knowledge', 'admin');
+    }
+
+    // =====================
+    // CHAT
+    // =====================
+
+    match /chat/{messageId} {
+      allow read: if isSignedIn() && canAccess('chat', 'view');
+      allow create: if isSignedIn() && canAccess('chat', 'view');
+      allow update: if isSignedIn() && resource.data.senderId == request.auth.uid;
+      allow delete: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid ||
+        isAdminOrOwner() ||
+        hasModuleAccess('chat', 'admin')
+      );
     }
   }
 }

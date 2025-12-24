@@ -16,6 +16,19 @@ class AuthService {
         userData.password
       );
 
+      // Получаем роль по умолчанию
+      let defaultRoleId = 'office'; // Fallback
+      try {
+        const roleService = await import('./role.service');
+        const defaultRoleResult = await roleService.default.getDefaultRole();
+        if (defaultRoleResult.success && defaultRoleResult.role) {
+          defaultRoleId = defaultRoleResult.role.id;
+        }
+      } catch (error) {
+        console.error('Error getting default role:', error);
+      }
+
+      // Создаем документ пользователя
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         email: userData.email,
         firstName: userData.firstName,
@@ -23,7 +36,8 @@ class AuthService {
         lastName: userData.lastName,
         position: userData.position,
         responsibility: userData.responsibility || '',
-        role: 'pending',
+        role: 'pending', // Оставляем для обратной совместимости
+        roleId: defaultRoleId, // Новая система ролей
         avatar: 'generated',
         contacts: {
           whatsapp: '',
@@ -34,6 +48,15 @@ class AuthService {
         teamsCount: 0,
         createdAt: serverTimestamp()
       });
+
+      // Автоназначение обязательных курсов для роли
+      try {
+        const learningService = await import('./learning.service');
+        await learningService.default.autoEnrollUserByRole(userCredential.user.uid, defaultRoleId);
+      } catch (error) {
+        console.error('Error auto-enrolling courses:', error);
+        // Не останавливаем регистрацию если автоназначение не удалось
+      }
 
       return { success: true, user: userCredential.user };
     } catch (error) {

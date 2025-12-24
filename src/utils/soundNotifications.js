@@ -15,7 +15,32 @@ class SoundNotifications {
   initAudioContext() {
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Автоматически возобновляем контекст при первом взаимодействии
+      if (this.audioContext.state === 'suspended') {
+        const resumeAudio = () => {
+          this.audioContext.resume().then(() => {
+            console.log('🔊 AudioContext resumed');
+          });
+          // Удаляем слушатели после первого запуска
+          document.removeEventListener('click', resumeAudio);
+          document.removeEventListener('keydown', resumeAudio);
+          document.removeEventListener('touchstart', resumeAudio);
+        };
+
+        document.addEventListener('click', resumeAudio, { once: true });
+        document.addEventListener('keydown', resumeAudio, { once: true });
+        document.addEventListener('touchstart', resumeAudio, { once: true });
+      }
     }
+
+    // Возобновляем контекст если он suspended
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(err => {
+        console.warn('Failed to resume AudioContext:', err);
+      });
+    }
+
     return this.audioContext;
   }
 

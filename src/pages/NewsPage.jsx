@@ -12,6 +12,7 @@ import { UserContext } from '../App.jsx';
 import MainLayout from '../components/Layout/MainLayout';
 import newsService from '../services/news.service';
 import userService from '../services/user.service';
+import teamService from '../services/team.service';
 import NewsFeed from '../components/News/NewsFeed';
 import NewsCreateDialog from '../components/News/NewsCreateDialog';
 import { useToast } from '../contexts/ToastContext';
@@ -26,8 +27,9 @@ function NewsPage() {
   const [canCreateNews, setCanCreateNews] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [users, setUsers] = useState({});
+  const [userTeamIds, setUserTeamIds] = useState([]);
 
-  // Загружаем профиль пользователя для проверки прав
+  // Загружаем профиль пользователя и команды
   useEffect(() => {
     if (!user) return;
 
@@ -39,6 +41,12 @@ function NewsPage() {
         const canCreate = result.user.role === 'admin' || result.user.canCreateNews === true;
         setCanCreateNews(canCreate);
       }
+
+      // Загружаем команды пользователя для фильтрации новостей
+      const teamsResult = await teamService.getUserTeams(user.uid);
+      if (teamsResult.success) {
+        setUserTeamIds(teamsResult.teams.map(t => t.id));
+      }
     };
 
     loadUserProfile();
@@ -46,15 +54,22 @@ function NewsPage() {
 
   // Подписываемся на новости
   useEffect(() => {
-    if (!user) return;
+    if (!user || !userProfile) return;
 
     const unsubscribe = newsService.subscribeToNews((updatedNews) => {
-      setNews(updatedNews);
+      // Применяем фильтрацию по таргетингу
+      const filteredNews = newsService.filterNewsByTargeting(
+        updatedNews,
+        user.uid,
+        userProfile.roleId || userProfile.role, // roleId for new system, role for legacy
+        userTeamIds
+      );
+      setNews(filteredNews);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, userProfile, userTeamIds]);
 
   // Загружаем всех пользователей один раз (оптимизация N+1)
   useEffect(() => {

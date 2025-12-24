@@ -97,7 +97,7 @@ class NewsService {
   // Создать новость
   async createNews(newsData, userId) {
     try {
-      const docRef = await addDoc(collection(db, NEWS_COLLECTION), {
+      const newsDoc = {
         title: newsData.title,
         content: newsData.content,
         imageUrl: newsData.imageUrl || null,
@@ -108,7 +108,36 @@ class NewsService {
         commentsCount: 0,
         likesCount: 0,
         likes: {}, // { userId: true }
-      });
+        // Targeting
+        targeting: newsData.targeting || {
+          type: 'all', // all | roles | teams | users
+          roleIds: [],
+          teamIds: [],
+          userIds: [],
+        },
+        // Important news
+        isImportant: newsData.isImportant || false,
+        requiresConfirmation: newsData.requiresConfirmation || false,
+        readBy: {}, // { userId: { readAt: timestamp, confirmed: boolean } }
+      };
+
+      // Poll (опрос)
+      if (newsData.poll && newsData.poll.question && newsData.poll.options) {
+        newsDoc.poll = {
+          question: newsData.poll.question,
+          options: newsData.poll.options.map(opt => ({
+            text: opt.text || opt,
+            votes: {}, // { userId: true }
+            votesCount: 0,
+          })),
+          multipleChoice: newsData.poll.multipleChoice || false,
+          showResults: newsData.poll.showResults !== false, // по умолчанию true
+          allowAddOptions: newsData.poll.allowAddOptions || false,
+          totalVotes: 0,
+        };
+      }
+
+      const docRef = await addDoc(collection(db, NEWS_COLLECTION), newsDoc);
 
       return { success: true, newsId: docRef.id };
     } catch (error) {
@@ -339,6 +368,196 @@ class NewsService {
       return { success: true };
     } catch (error) {
       console.error('Error deleting comment:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // =====================
+  // TARGETING & IMPORTANT NEWS
+  // =====================
+
+  // Фильтровать новости по таргетингу для пользователя
+  filterNewsByTargeting(newsList, userId, userRoleId, userTeamIds = []) {
+    return newsList.filter(news => {
+      // Если таргетинга нет или он "all", показываем всем
+      if (!news.targeting || news.targeting.type === 'all') {
+        return true;
+      }
+
+      // Фильтруем по ролям
+      if (news.targeting.type === 'roles') {
+        return news.targeting.roleIds && news.targeting.roleIds.includes(userRoleId);
+      }
+
+      // Фильтруем по командам
+      if (news.targeting.type === 'teams') {
+        return news.targeting.teamIds && news.targeting.teamIds.some(teamId => userTeamIds.includes(teamId));
+      }
+
+      // Фильтруем по конкретным пользователям
+      if (news.targeting.type === 'users') {
+        return news.targeting.userIds && news.targeting.userIds.includes(userId);
+      }
+
+      return false;
+    });
+  }
+
+  // Получить непрочитанные важные новости для пользователя
+  async getUnreadImportantNews(userId) {
+    try {
+      const q = query(
+        collection(db, NEWS_COLLECTION),
+        where('isImportant', '==', true),
+        where('requiresConfirmation', '==', true),
+        firestoreOrderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      const allImportantNews = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : doc.data().createdAt,
+      }));
+
+      // Фильтруем только непрочитанные или неподтвержденные
+      const unreadNews = allImportantNews.filter(news => {
+        const readInfo = news.readBy?.[userId];
+        return !readInfo || !readInfo.confirmed;
+      });
+
+      return { success: true, news: unreadNews };
+    } catch (error) {
+      console.error('Error getting unread important news:', error);
+      return { success: false, error: error.message, news: [] };
+    }
+  }
+
+  // Подтвердить прочтение важной новости
+  async confirmNewsRead(newsId, userId) {
+    try {
+      const newsRef = doc(db, NEWS_COLLECTION, newsId);
+      await updateDoc(newsRef, {
+        [`readBy.${userId}`]: {
+          readAt: serverTimestamp(),
+          confirmed: true,
+        },
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error confirming news read:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // =====================
+  // ОПРОСЫ (POLLS)
+  // =====================
+
+  // Проголосовать в опросе
+  async votePoll(newsId, userId, optionIndexes) {
+    try {
+      const newsRef = doc(db, NEWS_COLLECTION, newsId);
+      const newsDoc = await getDoc(newsRef);
+
+      if (!newsDoc.exists()) {
+        return { success: false, error: 'News not found' };
+      }
+
+      const newsData = newsDoc.data();
+      const poll = newsData.poll;
+
+      if (!poll) {
+        return { success: false, error: 'Poll not found' };
+      }
+
+      // Проверяем, не голосовал ли пользователь уже
+      const hasVoted = poll.options.some(opt => opt.votes && opt.votes[userId]);
+
+      if (hasVoted && !poll.multipleChoice) {
+        // Если пользователь уже голосовал и это не множественный выбор,
+        // сначала удаляем его старые голоса
+        poll.options.forEach((opt, idx) => {
+          if (opt.votes && opt.votes[userId]) {
+            delete opt.votes[userId];
+            opt.votesCount = (opt.votesCount || 1) - 1;
+          }
+        });
+        poll.totalVotes = Math.max(0, (poll.totalVotes || 1) - 1);
+      }
+
+      // Добавляем новые голоса
+      const indexes = Array.isArray(optionIndexes) ? optionIndexes : [optionIndexes];
+
+      indexes.forEach(index => {
+        if (index >= 0 && index < poll.options.length) {
+          if (!poll.options[index].votes) {
+            poll.options[index].votes = {};
+          }
+          poll.options[index].votes[userId] = true;
+          poll.options[index].votesCount = (poll.options[index].votesCount || 0) + 1;
+        }
+      });
+
+      // Обновляем общее количество голосов
+      if (!hasVoted) {
+        poll.totalVotes = (poll.totalVotes || 0) + 1;
+      }
+
+      await updateDoc(newsRef, {
+        poll,
+        updatedAt: serverTimestamp(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error voting in poll:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Добавить опцию в опрос (если разрешено)
+  async addPollOption(newsId, userId, optionText) {
+    try {
+      const newsRef = doc(db, NEWS_COLLECTION, newsId);
+      const newsDoc = await getDoc(newsRef);
+
+      if (!newsDoc.exists()) {
+        return { success: false, error: 'News not found' };
+      }
+
+      const newsData = newsDoc.data();
+      const poll = newsData.poll;
+
+      if (!poll) {
+        return { success: false, error: 'Poll not found' };
+      }
+
+      if (!poll.allowAddOptions) {
+        return { success: false, error: 'Adding options is not allowed' };
+      }
+
+      // Проверяем, нет ли уже такой опции
+      const optionExists = poll.options.some(opt => opt.text.toLowerCase() === optionText.toLowerCase());
+      if (optionExists) {
+        return { success: false, error: 'Option already exists' };
+      }
+
+      poll.options.push({
+        text: optionText,
+        votes: {},
+        votesCount: 0,
+      });
+
+      await updateDoc(newsRef, {
+        poll,
+        updatedAt: serverTimestamp(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding poll option:', error);
       return { success: false, error: error.message };
     }
   }

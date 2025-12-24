@@ -308,10 +308,12 @@ const learningService = {
 
       let completedLessons = [];
       let startedAt = new Date();
+      let wasCompleted = false;
 
       if (docSnap.exists()) {
         completedLessons = docSnap.data().completedLessons || [];
         startedAt = docSnap.data().startedAt?.toDate?.() || startedAt;
+        wasCompleted = docSnap.data().progress === 100;
       }
 
       // Добавляем урок если его еще нет
@@ -337,6 +339,28 @@ const learningService = {
         updatedAt: serverTimestamp(),
       });
 
+      // Если курс только что завершен - выдаем сертификат
+      if (isCompleted && !wasCompleted) {
+        try {
+          // Проверяем, нет ли уже сертификата
+          const hasCertResult = await this.hasCertificate(userId, courseId);
+          if (hasCertResult.success && !hasCertResult.hasCertificate) {
+            // Получаем данные пользователя и курса
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            const courseResult = await this.getCourse(courseId);
+
+            if (userDoc.exists() && courseResult.success) {
+              const userData = userDoc.data();
+              await this.issueCertificate(userId, courseId, userData, courseResult.course);
+              console.log('🎓 Сертификат выдан автоматически за курс:', courseResult.course.title);
+            }
+          }
+        } catch (certError) {
+          console.error('Error issuing certificate:', certError);
+          // Не прерываем выполнение если сертификат не удалось выдать
+        }
+      }
+
       return { success: true, progress };
     } catch (error) {
       console.error('Error marking lesson completed:', error);
@@ -344,9 +368,35 @@ const learningService = {
     }
   },
 
-  // Получить все курсы пользователя с прогрессом
-  async getUserCoursesWithProgress(userId, userTeams = []) {
+  // Получить весь прогресс всех пользователей (для аналитики)
+  async getAllProgress() {
     try {
+      const snapshot = await getDocs(collection(db, PROGRESS_COLLECTION));
+      const progress = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        startedAt: doc.data().startedAt?.toDate?.() || doc.data().startedAt,
+        completedAt: doc.data().completedAt?.toDate?.() || doc.data().completedAt,
+      }));
+
+      return { success: true, progress };
+    } catch (error) {
+      console.error('Error getting all progress:', error);
+      return { success: false, error: error.message, progress: [] };
+    }
+  },
+
+  // Получить все курсы пользователя с прогрессом
+  async getUserCoursesWithProgress(userId, userTeams = [], userRoleId = null) {
+    try {
+      // Получаем roleId пользователя если не передан
+      if (!userRoleId) {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          userRoleId = userDoc.data().roleId;
+        }
+      }
+
       // Получаем все курсы
       const coursesResult = await this.getAllCourses();
       if (!coursesResult.success) {
@@ -373,6 +423,11 @@ const learningService = {
           if (hasTeamAccess) {
             return true;
           }
+        }
+
+        // Проверяем, есть ли доступ через роль
+        if (course.assignedRoles && userRoleId && course.assignedRoles.includes(userRoleId)) {
+          return true;
         }
 
         return false;
@@ -717,6 +772,29 @@ const learningService = {
     }
   },
 
+  // Получить все результаты экзаменов пользователя
+  async getUserExamResults(userId) {
+    try {
+      const q = query(
+        collection(db, 'exam_results'),
+        where('userId', '==', userId),
+        orderBy('submittedAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+
+      const results = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        submittedAt: doc.data().submittedAt?.toDate?.(),
+      }));
+
+      return { success: true, results };
+    } catch (error) {
+      console.error('Error getting user exam results:', error);
+      return { success: false, error: error.message, results: [] };
+    }
+  },
+
   // Course Statistics for Admins
   async getCourseStatistics(courseId) {
     try {
@@ -894,12 +972,22 @@ const learningService = {
   async updateCourseAccess(courseId, accessData) {
     try {
       const courseRef = doc(db, COURSES_COLLECTION, courseId);
-      await updateDoc(courseRef, {
+      const updateData = {
         assignedUsers: accessData.assignedUsers || [],
         assignedTeams: accessData.assignedTeams || [],
+        assignedRoles: accessData.assignedRoles || [],
         isPublic: accessData.isPublic !== undefined ? accessData.isPublic : true,
+        isRequired: accessData.isRequired || false,
+        requiredForRoles: accessData.requiredForRoles || [],
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      // Добавляем дедлайн если он указан
+      if (accessData.deadline) {
+        updateData.deadline = accessData.deadline;
+      }
+
+      await updateDoc(courseRef, updateData);
       return { success: true };
     } catch (error) {
       console.error('Error updating course access:', error);
@@ -922,7 +1010,11 @@ const learningService = {
         access: {
           assignedUsers: data.assignedUsers || [],
           assignedTeams: data.assignedTeams || [],
+          assignedRoles: data.assignedRoles || [],
           isPublic: data.isPublic !== undefined ? data.isPublic : true,
+          isRequired: data.isRequired || false,
+          requiredForRoles: data.requiredForRoles || [],
+          deadline: data.deadline || null,
         },
       };
     } catch (error) {
@@ -931,7 +1023,7 @@ const learningService = {
     }
   },
 
-  async hasAccessToCourse(userId, userTeams, courseId) {
+  async hasAccessToCourse(userId, userTeams, courseId, userRoleId = null) {
     try {
       const courseRef = doc(db, COURSES_COLLECTION, courseId);
       const courseDoc = await getDoc(courseRef);
@@ -962,10 +1054,634 @@ const learningService = {
         }
       }
 
+      // Check if user's role is assigned
+      if (data.assignedRoles && userRoleId && data.assignedRoles.includes(userRoleId)) {
+        return { success: true, hasAccess: true };
+      }
+
       return { success: true, hasAccess: false };
     } catch (error) {
       console.error('Error checking course access:', error);
       return { success: false, hasAccess: false, error: error.message };
+    }
+  },
+
+  // Получить обязательные курсы для роли
+  async getRequiredCoursesForRole(roleId) {
+    try {
+      const q = query(
+        collection(db, COURSES_COLLECTION),
+        where('isRequired', '==', true),
+        where('requiredForRoles', 'array-contains', roleId)
+      );
+      const snapshot = await getDocs(q);
+      const courses = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      }));
+
+      return { success: true, courses };
+    } catch (error) {
+      console.error('Error getting required courses:', error);
+      return { success: false, error: error.message, courses: [] };
+    }
+  },
+
+  // Проверка дедлайнов и отправка уведомлений
+  async checkAndNotifyDeadlines(userId) {
+    try {
+      // Получаем все курсы пользователя с прогрессом
+      const userTeamsResult = await this.getUserTeams(userId);
+      const userTeams = userTeamsResult.success ? userTeamsResult.teams : [];
+
+      const coursesResult = await this.getUserCoursesWithProgress(userId, userTeams);
+      if (!coursesResult.success) {
+        return { success: false, error: 'Failed to get user courses' };
+      }
+
+      const notifications = [];
+      const now = new Date();
+
+      for (const course of coursesResult.courses) {
+        // Пропускаем завершенные курсы и курсы без дедлайна
+        if (!course.isRequired || !course.deadline || course.userProgress.progress === 100) {
+          continue;
+        }
+
+        let deadlineDate = null;
+
+        if (course.deadline.type === 'fixed_date') {
+          deadlineDate = course.deadline.value?.toDate?.() || new Date(course.deadline.value);
+        } else if (course.deadline.type === 'days_after_assign' && course.userProgress.startedAt) {
+          const startDate = course.userProgress.startedAt?.toDate?.() || new Date(course.userProgress.startedAt);
+          deadlineDate = new Date(startDate);
+          deadlineDate.setDate(deadlineDate.getDate() + course.deadline.value);
+        }
+
+        if (!deadlineDate) {
+          continue;
+        }
+
+        const diffTime = deadlineDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+          // Просрочено
+          notifications.push({
+            status: 'overdue',
+            courseId: course.id,
+            courseTitle: course.title,
+            userId,
+            daysOverdue: Math.abs(diffDays)
+          });
+        } else if (diffDays <= 1) {
+          // Срочно (сегодня/завтра)
+          notifications.push({
+            status: 'urgent',
+            courseId: course.id,
+            courseTitle: course.title,
+            userId,
+            daysLeft: diffDays
+          });
+        } else if (diffDays <= 3) {
+          // Скоро (2-3 дня)
+          notifications.push({
+            status: 'soon',
+            courseId: course.id,
+            courseTitle: course.title,
+            userId,
+            daysLeft: diffDays
+          });
+        }
+      }
+
+      // Отправляем уведомления
+      if (notifications.length > 0) {
+        try {
+          const notificationService = await import('./notification.service');
+          await notificationService.default.notifyCourseDeadlinesBulk(notifications);
+        } catch (error) {
+          console.error('Error sending deadline notifications:', error);
+        }
+      }
+
+      return { success: true, notificationsSent: notifications.length };
+    } catch (error) {
+      console.error('Error checking deadlines:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Автоназначение курсов пользователю по его роли
+  async autoEnrollUserByRole(userId, roleId) {
+    try {
+      console.log('📚 Автоназначение курсов для пользователя:', userId, 'Роль:', roleId);
+
+      // Получаем обязательные курсы для роли
+      const requiredCoursesResult = await this.getRequiredCoursesForRole(roleId);
+      if (!requiredCoursesResult.success) {
+        console.log('❌ Не удалось получить обязательные курсы для роли');
+        return { success: false, error: 'Failed to get required courses' };
+      }
+
+      console.log('📋 Найдено обязательных курсов:', requiredCoursesResult.courses.length);
+
+      const enrollments = [];
+      for (const course of requiredCoursesResult.courses) {
+        // Проверяем, не записан ли уже пользователь
+        const existingEnrollment = await this.getUserProgress(userId, course.id);
+        if (!existingEnrollment.success || !existingEnrollment.progress) {
+          console.log('➕ Назначаем курс:', course.title);
+          // Записываем на курс
+          const enrollResult = await this.enrollUser(userId, course.id);
+          if (enrollResult.success) {
+            enrollments.push(course.id);
+
+            // Отправляем уведомление о назначении курса
+            try {
+              const notificationService = await import('./notification.service');
+              console.log('📧 Отправка уведомления о назначении курса:', course.title);
+              await notificationService.default.notifyCourseAssigned(
+                course.id,
+                course.title,
+                userId,
+                course.isRequired,
+                course.deadline
+              );
+              console.log('✅ Уведомление отправлено');
+            } catch (error) {
+              console.error('❌ Ошибка отправки уведомления:', error);
+              // Не останавливаем выполнение если уведомление не удалось
+            }
+          }
+        } else {
+          console.log('⏭️  Пользователь уже записан на курс:', course.title);
+        }
+      }
+
+      return { success: true, enrolledCourses: enrollments };
+    } catch (error) {
+      console.error('Error auto-enrolling user:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // =====================
+  // ПРАКТИЧЕСКИЕ ЗАДАНИЯ (SUBMISSIONS)
+  // =====================
+
+  // Отправить практическое задание
+  async submitAssignment(lessonId, userId, userData, files) {
+    try {
+      const submissionRef = await addDoc(
+        collection(db, LESSONS_COLLECTION, lessonId, 'submissions'),
+        {
+          userId,
+          userName: userData.displayName || `${userData.firstName} ${userData.lastName}`,
+          userAvatar: userData.avatar || null,
+          files: files.map(f => ({
+            name: f.name,
+            url: f.url,
+            size: f.size,
+            uploadedAt: serverTimestamp(),
+          })),
+          submittedAt: serverTimestamp(),
+          status: 'pending', // pending | approved | rejected
+          reviewedBy: null,
+          reviewedAt: null,
+          feedback: null,
+          grade: null,
+        }
+      );
+
+      return { success: true, submissionId: submissionRef.id };
+    } catch (error) {
+      console.error('Error submitting assignment:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Получить submission пользователя по уроку
+  async getSubmission(lessonId, userId) {
+    try {
+      const q = query(
+        collection(db, LESSONS_COLLECTION, lessonId, 'submissions'),
+        where('userId', '==', userId),
+        orderBy('submittedAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return {
+          success: true,
+          submission: {
+            id: doc.id,
+            ...doc.data(),
+            submittedAt: doc.data().submittedAt?.toDate?.() || doc.data().submittedAt,
+            reviewedAt: doc.data().reviewedAt?.toDate?.() || doc.data().reviewedAt,
+          },
+        };
+      }
+
+      return { success: true, submission: null };
+    } catch (error) {
+      console.error('Error getting submission:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Получить все submissions для урока (для проверяющих)
+  async getAllSubmissions(lessonId) {
+    try {
+      const q = query(
+        collection(db, LESSONS_COLLECTION, lessonId, 'submissions'),
+        orderBy('submittedAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+
+      const submissions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        lessonId,
+        ...doc.data(),
+        submittedAt: doc.data().submittedAt?.toDate?.() || doc.data().submittedAt,
+        reviewedAt: doc.data().reviewedAt?.toDate?.() || doc.data().reviewedAt,
+      }));
+
+      return { success: true, submissions };
+    } catch (error) {
+      console.error('Error getting all submissions:', error);
+      return { success: false, error: error.message, submissions: [] };
+    }
+  },
+
+  // Получить все pending submissions (для страницы проверки)
+  async getPendingSubmissions() {
+    try {
+      // Получаем все уроки типа practice
+      const lessonsQuery = query(
+        collection(db, LESSONS_COLLECTION),
+        where('type', '==', 'practice')
+      );
+      const lessonsSnapshot = await getDocs(lessonsQuery);
+
+      const allSubmissions = [];
+
+      for (const lessonDoc of lessonsSnapshot.docs) {
+        const lesson = { id: lessonDoc.id, ...lessonDoc.data() };
+        const submissionsResult = await this.getAllSubmissions(lessonDoc.id);
+
+        if (submissionsResult.success) {
+          // Добавляем информацию об уроке и курсе
+          const courseResult = await this.getCourse(lesson.courseId);
+          const courseName = courseResult.success ? courseResult.course.title : 'Unknown';
+
+          submissionsResult.submissions.forEach(sub => {
+            allSubmissions.push({
+              ...sub,
+              lessonTitle: lesson.title,
+              courseId: lesson.courseId,
+              courseName,
+            });
+          });
+        }
+      }
+
+      // Сортируем: pending сначала, потом по дате
+      allSubmissions.sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        return new Date(b.submittedAt) - new Date(a.submittedAt);
+      });
+
+      return { success: true, submissions: allSubmissions };
+    } catch (error) {
+      console.error('Error getting pending submissions:', error);
+      return { success: false, error: error.message, submissions: [] };
+    }
+  },
+
+  // Проверить submission
+  async reviewSubmission(lessonId, submissionId, reviewerId, status, feedback, grade = null) {
+    try {
+      const submissionRef = doc(db, LESSONS_COLLECTION, lessonId, 'submissions', submissionId);
+
+      await updateDoc(submissionRef, {
+        status, // 'approved' | 'rejected'
+        reviewedBy: reviewerId,
+        reviewedAt: serverTimestamp(),
+        feedback: feedback || null,
+        grade: grade,
+      });
+
+      // Получаем submission для отправки уведомления
+      const submissionSnap = await getDoc(submissionRef);
+      const submissionData = submissionSnap.data();
+
+      // Отправляем уведомление студенту
+      try {
+        const notificationService = await import('./notification.service');
+        await notificationService.default.createNotification({
+          userId: submissionData.userId,
+          type: 'ASSIGNMENT_REVIEWED',
+          title: status === 'approved' ? '✅ Задание принято' : '❌ Задание отклонено',
+          message: feedback || (status === 'approved' ? 'Ваше задание было принято' : 'Ваше задание требует доработки'),
+          link: `/learning/lesson/${lessonId}`,
+        });
+      } catch (error) {
+        console.error('Error sending notification:', error);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error reviewing submission:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // =====================
+  // СЕРТИФИКАТЫ
+  // =====================
+
+  // Генерировать уникальный номер сертификата
+  generateCertificateNumber() {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `CERT-${timestamp}-${random}`;
+  },
+
+  // Генерировать код верификации
+  generateVerificationCode() {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  },
+
+  // Выдать сертификат
+  async issueCertificate(userId, courseId, userData, courseData) {
+    try {
+      const certificateNumber = this.generateCertificateNumber();
+      const verificationCode = this.generateVerificationCode();
+
+      const certRef = await addDoc(collection(db, 'certificates'), {
+        userId,
+        courseId,
+        userName: userData.displayName || `${userData.firstName} ${userData.lastName}`,
+        courseName: courseData.title,
+        certificateNumber,
+        verificationCode,
+        completedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      });
+
+      // Отправляем уведомление
+      try {
+        const notificationService = await import('./notification.service');
+        await notificationService.default.createNotification({
+          userId,
+          type: 'CERTIFICATE_ISSUED',
+          title: '🎓 Сертификат получен!',
+          message: `Поздравляем! Вы получили сертификат за курс "${courseData.title}"`,
+          link: '/profile',
+        });
+      } catch (error) {
+        console.error('Error sending certificate notification:', error);
+      }
+
+      return {
+        success: true,
+        certificateId: certRef.id,
+        certificateNumber,
+        verificationCode,
+      };
+    } catch (error) {
+      console.error('Error issuing certificate:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Получить сертификаты пользователя
+  async getUserCertificates(userId) {
+    try {
+      const q = query(
+        collection(db, 'certificates'),
+        where('userId', '==', userId),
+        orderBy('completedAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+
+      const certificates = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        completedAt: doc.data().completedAt?.toDate?.() || doc.data().completedAt,
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      }));
+
+      return { success: true, certificates };
+    } catch (error) {
+      console.error('Error getting user certificates:', error);
+      return { success: false, error: error.message, certificates: [] };
+    }
+  },
+
+  // Верификация сертификата
+  async verifyCertificate(verificationCode) {
+    try {
+      const q = query(
+        collection(db, 'certificates'),
+        where('verificationCode', '==', verificationCode)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return {
+          success: true,
+          valid: true,
+          certificate: {
+            id: doc.id,
+            ...doc.data(),
+            completedAt: doc.data().completedAt?.toDate?.() || doc.data().completedAt,
+          },
+        };
+      }
+
+      return { success: true, valid: false };
+    } catch (error) {
+      console.error('Error verifying certificate:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Проверить, есть ли у пользователя сертификат за курс
+  async hasCertificate(userId, courseId) {
+    try {
+      const q = query(
+        collection(db, 'certificates'),
+        where('userId', '==', userId),
+        where('courseId', '==', courseId)
+      );
+      const snapshot = await getDocs(q);
+
+      return { success: true, hasCertificate: !snapshot.empty };
+    } catch (error) {
+      console.error('Error checking certificate:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // =====================
+  // СТАТИСТИКА ДЛЯ ДОСТИЖЕНИЙ
+  // =====================
+
+  // Получить статистику обучения пользователя для достижений
+  async getUserLearningStats(userId) {
+    try {
+      // Получаем все прогрессы пользователя
+      const progressQuery = query(
+        collection(db, PROGRESS_COLLECTION),
+        where('userId', '==', userId)
+      );
+      const progressSnapshot = await getDocs(progressQuery);
+
+      let completedCourses = 0;
+      let quickCourses = 0; // Завершены за 1 день
+
+      progressSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.progress === 100) {
+          completedCourses++;
+
+          // Проверяем, завершен ли за 1 день
+          if (data.startedAt && data.completedAt) {
+            const started = data.startedAt.toDate ? data.startedAt.toDate() : new Date(data.startedAt);
+            const completed = data.completedAt.toDate ? data.completedAt.toDate() : new Date(data.completedAt);
+            const diffHours = (completed - started) / (1000 * 60 * 60);
+            if (diffHours <= 24) {
+              quickCourses++;
+            }
+          }
+        }
+      });
+
+      // Получаем результаты экзаменов
+      const examResultsQuery = query(
+        collection(db, 'exam_results'),
+        where('userId', '==', userId)
+      );
+      const examResultsSnapshot = await getDocs(examResultsQuery);
+
+      let perfectExams = 0;
+      examResultsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.score === 100 || data.percentage === 100) {
+          perfectExams++;
+        }
+      });
+
+      // Получаем сертификаты
+      const certificatesResult = await this.getUserCertificates(userId);
+      const certificatesCount = certificatesResult.success ? certificatesResult.certificates.length : 0;
+
+      return {
+        success: true,
+        stats: {
+          completedCourses,
+          quickCourses,
+          perfectExams,
+          certificatesCount,
+        },
+      };
+    } catch (error) {
+      console.error('Error getting user learning stats:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // =====================
+  // АНАЛИТИКА ДЛЯ АДМИНОВ
+  // =====================
+
+  // Получить общую статистику LMS
+  async getLMSAnalytics() {
+    try {
+      // Всего курсов
+      const coursesSnapshot = await getDocs(collection(db, COURSES_COLLECTION));
+      const totalCourses = coursesSnapshot.size;
+      const activeCourses = coursesSnapshot.docs.filter(d => d.data().status !== 'archived').length;
+
+      // Всего прогрессов (уникальных студентов)
+      const progressSnapshot = await getDocs(collection(db, PROGRESS_COLLECTION));
+      const uniqueStudents = new Set(progressSnapshot.docs.map(d => d.data().userId)).size;
+      const completedEnrollments = progressSnapshot.docs.filter(d => d.data().progress === 100).length;
+
+      // Сертификаты
+      const certificatesSnapshot = await getDocs(collection(db, 'certificates'));
+      const totalCertificates = certificatesSnapshot.size;
+
+      // Статистика по курсам
+      const courseStats = [];
+      for (const courseDoc of coursesSnapshot.docs) {
+        const courseData = courseDoc.data();
+        const courseId = courseDoc.id;
+
+        // Прогрессы для этого курса
+        const courseProgressQuery = query(
+          collection(db, PROGRESS_COLLECTION),
+          where('courseId', '==', courseId)
+        );
+        const courseProgressSnapshot = await getDocs(courseProgressQuery);
+
+        const enrolled = courseProgressSnapshot.size;
+        const completed = courseProgressSnapshot.docs.filter(d => d.data().progress === 100).length;
+        const avgProgress = enrolled > 0
+          ? Math.round(courseProgressSnapshot.docs.reduce((sum, d) => sum + (d.data().progress || 0), 0) / enrolled)
+          : 0;
+
+        // Результаты экзаменов для курса
+        const examResultsQuery = query(
+          collection(db, 'exam_results'),
+          where('courseId', '==', courseId)
+        );
+        const examResultsSnapshot = await getDocs(examResultsQuery);
+        const avgExamScore = examResultsSnapshot.size > 0
+          ? Math.round(examResultsSnapshot.docs.reduce((sum, d) => sum + (d.data().score || d.data().percentage || 0), 0) / examResultsSnapshot.size)
+          : null;
+
+        courseStats.push({
+          id: courseId,
+          title: courseData.title,
+          enrolled,
+          completed,
+          avgProgress,
+          avgExamScore,
+          completionRate: enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0,
+        });
+      }
+
+      // Распределение по статусам
+      const statusDistribution = {
+        notStarted: progressSnapshot.docs.filter(d => d.data().progress === 0).length,
+        inProgress: progressSnapshot.docs.filter(d => d.data().progress > 0 && d.data().progress < 100).length,
+        completed: completedEnrollments,
+      };
+
+      return {
+        success: true,
+        analytics: {
+          overview: {
+            totalCourses,
+            activeCourses,
+            uniqueStudents,
+            completedEnrollments,
+            totalCertificates,
+          },
+          courseStats: courseStats.sort((a, b) => b.enrolled - a.enrolled),
+          statusDistribution,
+        },
+      };
+    } catch (error) {
+      console.error('Error getting LMS analytics:', error);
+      return { success: false, error: error.message };
     }
   },
 };

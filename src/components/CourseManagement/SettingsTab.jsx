@@ -42,16 +42,19 @@ function SettingsTab({ courseId, course, onUpdate }) {
 
   useEffect(() => {
     if (course) {
+      // Проверяем, что категория существует в списке доступных категорий
+      const categoryExists = categories.some(c => c.value === course.category);
+
       setFormData({
         title: course.title || '',
         description: course.description || '',
-        category: course.category || '',
+        category: categoryExists ? course.category : (categories.length > 0 ? categories[0].value : ''),
         duration: course.duration || '',
         requiredRole: course.requiredRole || 'all',
         coverImage: course.coverImage || null,
       });
     }
-  }, [course]);
+  }, [course, categories]);
 
   const loadCategories = async () => {
     const result = await learningService.getCategories();

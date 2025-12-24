@@ -1,12 +1,14 @@
 // src/pages/DashboardPage.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   Menu, MenuItem, Divider, FormControl, InputLabel, Select, Slider, IconButton, useTheme,
 } from '@mui/material';
 import { Add, Settings, CheckCircle, Lightbulb, Refresh } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { UserContext } from '../App';
+import { useQuery } from '@tanstack/react-query';
+import { useUserStore, useBoardStore, useNotificationStore } from '../stores';
+import { queryKeys } from '../queries/queryClient';
 import MainLayout from '../components/Layout/MainLayout';
 import TaskDrawer from '../components/Task/TaskDrawer';
 import SketchDrawer from '../components/Sketch/SketchDrawer';
@@ -58,15 +60,18 @@ const DEFAULT_WIDGETS = [
 const GRID_COLS = 4;
 
 function DashboardPage() {
-  const { user } = useContext(UserContext);
+  // Zustand stores
+  const user = useUserStore((state) => state.user);
+  const setBoards = useBoardStore((state) => state.setBoards);
+  const notifications = useNotificationStore((state) => state.notifications);
+  
   const navigate = useNavigate();
   const theme = useTheme();
 
   // Данные
-  const [boards, setBoards] = useState([]);
+  const [boards, setBoardsLocal] = useState([]);
   const [sketches, setSketches] = useState([]);
   const [teams, setTeams] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({ total: 0, completed: 0, overdue: 0, boards: 0 });
@@ -89,15 +94,23 @@ function DashboardPage() {
   const [quickCreateType, setQuickCreateType] = useState(null);
   const [quickTitle, setQuickTitle] = useState('');
 
-  // Загрузка данных
+  // Загрузка данных с подписками
   useEffect(() => {
     if (!user) return;
-    const unsubBoards = boardService.subscribeToUserBoards(user.uid, setBoards);
+    
+    const unsubBoards = boardService.subscribeToUserBoards(user.uid, (data) => {
+      setBoardsLocal(data);
+      setBoards(data); // Синхронизация с Zustand
+    });
     const unsubTeams = teamService.subscribeToUserTeams(user.uid, setTeams);
-    const unsubNotifications = notificationService.subscribeToUserNotifications(user.uid, (n) => setNotifications(n.slice(0, 20)));
+    
     loadSketches();
     loadTasks();
-    return () => { unsubBoards(); unsubTeams(); unsubNotifications(); };
+    
+    return () => { 
+      unsubBoards(); 
+      unsubTeams(); 
+    };
   }, [user]);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 // src/pages/LearningPortalPage.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Container,
@@ -28,9 +28,13 @@ import {
   Add,
   Settings as SettingsIcon,
   BarChart,
+  StarRate,
+  Warning,
+  Schedule,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { UserContext } from '../App';
+import { useQuery } from '@tanstack/react-query';
+import { useUserStore } from '../stores';
 import MainLayout from '../components/Layout/MainLayout';
 import learningService from '../services/learning.service';
 
@@ -42,62 +46,92 @@ const bauhaus = {
   purple: '#7E57C2',
 };
 
+// Функция для расчета статуса дедлайна
+function getDeadlineStatus(course, userProgress) {
+  if (!course.isRequired || !course.deadline || !userProgress) {
+    return null;
+  }
+
+  // Если курс уже завершен
+  if (userProgress.progress === 100) {
+    return null;
+  }
+
+  let deadlineDate = null;
+
+  if (course.deadline.type === 'fixed_date') {
+    deadlineDate = course.deadline.value?.toDate?.() || new Date(course.deadline.value);
+  } else if (course.deadline.type === 'days_after_assign' && userProgress.startedAt) {
+    const startDate = userProgress.startedAt?.toDate?.() || new Date(userProgress.startedAt);
+    deadlineDate = new Date(startDate);
+    deadlineDate.setDate(deadlineDate.getDate() + course.deadline.value);
+  }
+
+  if (!deadlineDate) {
+    return null;
+  }
+
+  const now = new Date();
+  const diffTime = deadlineDate - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { status: 'overdue', days: Math.abs(diffDays), date: deadlineDate };
+  } else if (diffDays <= 3) {
+    return { status: 'urgent', days: diffDays, date: deadlineDate };
+  } else if (diffDays <= 7) {
+    return { status: 'soon', days: diffDays, date: deadlineDate };
+  }
+
+  return { status: 'normal', days: diffDays, date: deadlineDate };
+}
+
 function LearningPortalPage() {
   const navigate = useNavigate();
-  const { user } = useContext(UserContext);
+  const user = useUserStore((state) => state.user);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [courses, setCourses] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalCourses: 0,
-    completedCourses: 0,
-    inProgressCourses: 0,
+
+  // React Query — категории
+  const { data: categories = [] } = useQuery({
+    queryKey: ['learning', 'categories'],
+    queryFn: async () => {
+      const result = await learningService.getCategories();
+      return result.success ? result.categories : [];
+    },
+    staleTime: 30 * 60 * 1000, // 30 минут
   });
 
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
+  // React Query — курсы с прогрессом
+  const { data: coursesData, isLoading: loading } = useQuery({
+    queryKey: ['learning', 'courses', 'withProgress', user?.uid],
+    queryFn: async () => {
+      const teamsResult = await learningService.getUserTeams(user.uid);
+      const userTeams = teamsResult.success ? teamsResult.teams : [];
+      const result = await learningService.getUserCoursesWithProgress(user.uid, userTeams, user.roleId);
+      
+      if (result.success) {
+        const courses = result.courses;
+        const completed = courses.filter(c => c.userProgress.progress === 100).length;
+        const inProgress = courses.filter(c => c.userProgress.progress > 0 && c.userProgress.progress < 100).length;
+        
+        return {
+          courses,
+          stats: {
+            totalCourses: courses.length,
+            completedCourses: completed,
+            inProgressCourses: inProgress,
+          }
+        };
+      }
+      return { courses: [], stats: { totalCourses: 0, completedCourses: 0, inProgressCourses: 0 } };
+    },
+    enabled: !!user?.uid,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const loadData = async () => {
-    setLoading(true);
-
-    // Загружаем категории
-    const categoriesResult = await learningService.getCategories();
-    if (categoriesResult.success) {
-      setCategories(categoriesResult.categories);
-    }
-
-    // Загружаем курсы
-    await loadCourses();
-
-    setLoading(false);
-  };
-
-  const loadCourses = async () => {
-    // Get user teams first
-    const teamsResult = await learningService.getUserTeams(user.uid);
-    const userTeams = teamsResult.success ? teamsResult.teams : [];
-
-    const result = await learningService.getUserCoursesWithProgress(user.uid, userTeams);
-
-    if (result.success) {
-      setCourses(result.courses);
-
-      // Вычисляем статистику
-      const completed = result.courses.filter(c => c.userProgress.progress === 100).length;
-      const inProgress = result.courses.filter(c => c.userProgress.progress > 0 && c.userProgress.progress < 100).length;
-
-      setStats({
-        totalCourses: result.courses.length,
-        completedCourses: completed,
-        inProgressCourses: inProgress,
-      });
-    }
-  };
+  const courses = coursesData?.courses || [];
+  const stats = coursesData?.stats || { totalCourses: 0, completedCourses: 0, inProgressCourses: 0 };
 
   const filteredCourses = courses.filter(course => {
     const matchesCategory = selectedCategory === 'all' || course.category === selectedCategory;
@@ -261,6 +295,7 @@ function LearningPortalPage() {
               },
             }}
           >
+            <Tab value="all" label="Все курсы" />
             {categories.map((category) => (
               <Tab
                 key={category.id}
@@ -296,6 +331,7 @@ function LearningPortalPage() {
               const progress = course.userProgress?.progress || 0;
               const isCompleted = progress === 100;
               const isStarted = progress > 0;
+              const deadlineStatus = getDeadlineStatus(course, course.userProgress);
 
               return (
                 <Grid item xs={12} sm={6} md={4} key={course.id}>
@@ -305,8 +341,12 @@ function LearningPortalPage() {
                       borderRadius: 3,
                       cursor: 'pointer',
                       transition: 'all 0.3s',
-                      border: '1px solid',
-                      borderColor: isCompleted ? bauhaus.teal : 'divider',
+                      border: '2px solid',
+                      borderColor: deadlineStatus?.status === 'overdue'
+                        ? bauhaus.red
+                        : isCompleted
+                        ? bauhaus.teal
+                        : 'divider',
                       '&:hover': {
                         transform: 'translateY(-4px)',
                         boxShadow: 6,
@@ -317,8 +357,8 @@ function LearningPortalPage() {
                     <Box
                       sx={{
                         height: 140,
-                        background: course.thumbnail
-                          ? `url(${course.thumbnail}) center/cover`
+                        background: course.coverImage
+                          ? `url(${course.coverImage}) center/cover`
                           : `linear-gradient(135deg, ${bauhaus.blue}40 0%, ${bauhaus.teal}40 100%)`,
                         display: 'flex',
                         alignItems: 'center',
@@ -326,39 +366,104 @@ function LearningPortalPage() {
                         position: 'relative',
                       }}
                     >
-                      {!course.thumbnail && (
+                      {!course.coverImage && (
                         <School sx={{ fontSize: 64, color: 'white', opacity: 0.8 }} />
                       )}
-                      {isCompleted && (
-                        <Chip
-                          icon={<CheckCircle />}
-                          label="Завершено"
-                          size="small"
-                          sx={{
-                            position: 'absolute',
-                            top: 12,
-                            right: 12,
-                            bgcolor: bauhaus.teal,
-                            color: 'white',
-                            fontWeight: 600,
-                            '& .MuiChip-icon': { color: 'white' }
-                          }}
-                        />
-                      )}
-                      {isStarted && !isCompleted && (
-                        <Chip
-                          label="В процессе"
-                          size="small"
-                          sx={{
-                            position: 'absolute',
-                            top: 12,
-                            right: 12,
-                            bgcolor: bauhaus.blue,
-                            color: 'white',
-                            fontWeight: 600,
-                          }}
-                        />
-                      )}
+
+                      {/* Chips Stack */}
+                      <Stack
+                        direction="column"
+                        spacing={0.5}
+                        sx={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                        }}
+                      >
+                        {/* Обязательный курс */}
+                        {course.isRequired && !isCompleted && (
+                          <Chip
+                            icon={<StarRate />}
+                            label="Обязательный"
+                            size="small"
+                            sx={{
+                              bgcolor: '#FF9800',
+                              color: 'white',
+                              fontWeight: 600,
+                              '& .MuiChip-icon': { color: 'white' }
+                            }}
+                          />
+                        )}
+
+                        {/* Дедлайн */}
+                        {deadlineStatus && deadlineStatus.status === 'overdue' && (
+                          <Chip
+                            icon={<Warning />}
+                            label={`Просрочен на ${deadlineStatus.days} дн.`}
+                            size="small"
+                            sx={{
+                              bgcolor: bauhaus.red,
+                              color: 'white',
+                              fontWeight: 600,
+                              '& .MuiChip-icon': { color: 'white' }
+                            }}
+                          />
+                        )}
+
+                        {deadlineStatus && deadlineStatus.status === 'urgent' && (
+                          <Chip
+                            icon={<Schedule />}
+                            label={deadlineStatus.days === 0 ? 'Сегодня!' : `Осталось ${deadlineStatus.days} дн.`}
+                            size="small"
+                            sx={{
+                              bgcolor: bauhaus.yellow,
+                              color: '#000',
+                              fontWeight: 600,
+                              '& .MuiChip-icon': { color: '#000' }
+                            }}
+                          />
+                        )}
+
+                        {deadlineStatus && deadlineStatus.status === 'soon' && (
+                          <Chip
+                            icon={<Schedule />}
+                            label={`До ${deadlineStatus.days} дн.`}
+                            size="small"
+                            sx={{
+                              bgcolor: 'rgba(255, 255, 255, 0.9)',
+                              color: bauhaus.blue,
+                              fontWeight: 600,
+                            }}
+                          />
+                        )}
+
+                        {/* Статус прохождения */}
+                        {isCompleted && (
+                          <Chip
+                            icon={<CheckCircle />}
+                            label="Завершено"
+                            size="small"
+                            sx={{
+                              bgcolor: bauhaus.teal,
+                              color: 'white',
+                              fontWeight: 600,
+                              '& .MuiChip-icon': { color: 'white' }
+                            }}
+                          />
+                        )}
+
+                        {isStarted && !isCompleted && !deadlineStatus && (
+                          <Chip
+                            label="В процессе"
+                            size="small"
+                            sx={{
+                              bgcolor: bauhaus.blue,
+                              color: 'white',
+                              fontWeight: 600,
+                            }}
+                          />
+                        )}
+                      </Stack>
                     </Box>
                     <CardContent>
                       <Typography variant="h6" fontWeight={700} gutterBottom>

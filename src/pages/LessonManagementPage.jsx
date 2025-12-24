@@ -36,6 +36,7 @@ import {
   ArrowDownward,
   Quiz,
   BarChart,
+  Assignment,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../App';
@@ -53,6 +54,7 @@ const bauhaus = {
 const lessonTypes = [
   { value: 'article', label: 'Статья', icon: <Article /> },
   { value: 'video', label: 'Видео', icon: <PlayCircleOutline /> },
+  { value: 'practice', label: 'Практическое задание', icon: <Assignment /> },
 ];
 
 function LessonManagementPage() {
@@ -110,6 +112,11 @@ function LessonManagementPage() {
         duration: lesson.duration || '',
         order: lesson.order || 0,
         attachments: lesson.attachments || [],
+        // Practice fields
+        assignmentDescription: lesson.assignmentDescription || '',
+        requirements: lesson.requirements || '',
+        acceptedFileTypes: lesson.acceptedFileTypes || ['pdf', 'doc', 'docx', 'zip'],
+        maxFileSize: lesson.maxFileSize || 10,
       });
     } else {
       setEditingLesson(null);
@@ -121,6 +128,11 @@ function LessonManagementPage() {
         duration: '',
         order: lessons.length,
         attachments: [],
+        // Practice fields
+        assignmentDescription: '',
+        requirements: '',
+        acceptedFileTypes: ['pdf', 'doc', 'docx', 'zip'],
+        maxFileSize: 10,
       });
     }
     setDialogOpen(true);
@@ -355,8 +367,8 @@ function LessonManagementPage() {
                               {index + 1}. {lesson.title}
                             </Typography>
                             <Chip
-                              icon={lesson.type === 'video' ? <PlayCircleOutline /> : <Article />}
-                              label={lesson.type === 'video' ? 'Видео' : 'Статья'}
+                              icon={lesson.type === 'video' ? <PlayCircleOutline /> : lesson.type === 'practice' ? <Assignment /> : <Article />}
+                              label={lesson.type === 'video' ? 'Видео' : lesson.type === 'practice' ? 'Практика' : 'Статья'}
                               size="small"
                               variant="outlined"
                             />
@@ -450,6 +462,49 @@ function LessonManagementPage() {
                   placeholder="https://www.youtube.com/embed/... или https://rutube.ru/play/embed/..."
                   helperText="Используйте embed URL для правильного отображения. YouTube: youtube.com/embed/ID, Rutube: rutube.ru/play/embed/ID"
                 />
+              )}
+
+              {/* Practice Assignment Fields */}
+              {formData.type === 'practice' && (
+                <>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    label="Описание задания"
+                    value={formData.assignmentDescription}
+                    onChange={(e) => setFormData({ ...formData, assignmentDescription: e.target.value })}
+                    placeholder="Опишите, что должен сделать студент..."
+                  />
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    label="Требования к выполнению"
+                    value={formData.requirements}
+                    onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                    placeholder="Укажите требования к формату, объёму работы и т.д."
+                  />
+                  <TextField
+                    fullWidth
+                    label="Допустимые форматы файлов"
+                    value={formData.acceptedFileTypes?.join(', ') || 'pdf, doc, docx, zip'}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      acceptedFileTypes: e.target.value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+                    })}
+                    placeholder="pdf, doc, docx, zip"
+                    helperText="Укажите расширения файлов через запятую"
+                  />
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Максимальный размер файла (МБ)"
+                    value={formData.maxFileSize}
+                    onChange={(e) => setFormData({ ...formData, maxFileSize: parseInt(e.target.value) || 10 })}
+                    inputProps={{ min: 1, max: 100 }}
+                  />
+                </>
               )}
               <Box>
                 <Typography variant="subtitle2" gutterBottom>

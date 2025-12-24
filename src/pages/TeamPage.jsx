@@ -1,13 +1,15 @@
 // src/pages/TeamPage.jsx
 // Исправлено: клик на команду открывает TeamDrawer вместо чата
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, Card, CardContent, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   Avatar, Chip, List, ListItem, ListItemAvatar, ListItemText, ListItemButton, Stack, Tabs, Tab, useTheme,
 } from '@mui/material';
 import { Add, Group } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { UserContext } from '../App';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useUserStore } from '../stores';
+import { queryKeys } from '../queries/queryClient';
 import MainLayout from '../components/Layout/MainLayout';
 import TeamDrawer from '../components/Team/TeamDrawer';
 import UserProfileDrawer from '../components/User/UserProfileDrawer';
@@ -15,14 +17,14 @@ import teamService from '../services/team.service';
 import userService from '../services/user.service';
 
 function TeamPage() {
-  const { user } = useContext(UserContext);
+  const user = useUserStore((state) => state.user);
   const navigate = useNavigate();
   const { teamId } = useParams();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const queryClient = useQueryClient();
   
   const [teams, setTeams] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
   const [currentTab, setCurrentTab] = useState(0);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
@@ -33,10 +35,20 @@ function TeamPage() {
   
   const [newTeamData, setNewTeamData] = useState({ name: '', description: '' });
 
+  // React Query — загрузка пользователей
+  const { data: allUsers = [] } = useQuery({
+    queryKey: queryKeys.users.list(),
+    queryFn: async () => {
+      const result = await userService.getApprovedUsers();
+      return result.success ? result.users : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Подписка на команды
   useEffect(() => {
     if (!user) return;
     const unsubscribe = teamService.subscribeToUserTeams(user.uid, setTeams);
-    loadAllUsers();
     return () => unsubscribe();
   }, [user]);
 
@@ -50,36 +62,37 @@ function TeamPage() {
     }
   }, [teamId, teams]);
 
-  const loadAllUsers = async () => {
-    const result = await userService.getApprovedUsers();
-    if (result.success) setAllUsers(result.users);
-  };
-
-  const handleCreateTeam = async () => {
-    if (!newTeamData.name.trim()) return;
-    const result = await teamService.createTeam(newTeamData.name, newTeamData.description, user.uid);
-    if (result.success) {
+  // Mutation — создание команды
+  const createTeamMutation = useMutation({
+    mutationFn: (data) => teamService.createTeam(data.name, data.description, user.uid),
+    onSuccess: () => {
       setCreateDialogOpen(false);
       setNewTeamData({ name: '', description: '' });
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+    },
+  });
 
-  const handleSelectTeam = (team) => {
+  const handleCreateTeam = useCallback(async () => {
+    if (!newTeamData.name.trim()) return;
+    createTeamMutation.mutate(newTeamData);
+  }, [newTeamData, createTeamMutation]);
+
+  const handleSelectTeam = useCallback((team) => {
     setSelectedTeamId(team.id);
     setTeamDrawerOpen(true);
     navigate(`/team/${team.id}`);
-  };
+  }, [navigate]);
 
-  const handleMemberClick = (memberId) => {
+  const handleMemberClick = useCallback((memberId) => {
     setSelectedUserId(memberId);
     setUserProfileDrawerOpen(true);
-  };
+  }, []);
 
-  const handleCloseTeamDrawer = () => {
+  const handleCloseTeamDrawer = useCallback(() => {
     setTeamDrawerOpen(false);
     setSelectedTeamId(null);
     navigate('/team');
-  };
+  }, [navigate]);
 
   const isLeader = (team) => {
     const role = team?.members?.[user.uid];

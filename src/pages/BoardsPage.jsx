@@ -1,5 +1,5 @@
 // src/pages/BoardsPage.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -53,14 +53,18 @@ import {
   PersonAdd,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { UserContext } from '../App';
+import { useUserStore, useBoardStore } from '../stores';
+import { queryKeys } from '../queries/queryClient';
 import MainLayout from '../components/Layout/MainLayout';
 import boardService from '../services/board.service';
 import { useToast } from '../contexts/ToastContext';
 import taskService from '../services/task.service';
 import userService from '../services/user.service';
+import { useDebouncedValue } from '../hooks/usePerformance';
 
 // Bauhaus цвета
 const bauhaus = {
@@ -72,12 +76,14 @@ const bauhaus = {
 };
 
 function BoardsPage() {
-  const { user } = useContext(UserContext);
+  // Zustand store
+  const user = useUserStore((state) => state.user);
+  const setBoards = useBoardStore((state) => state.setBoards);
+  
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  const [boards, setBoards] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('updatedAt');
@@ -98,82 +104,109 @@ function BoardsPage() {
   const [sharingBoardId, setSharingBoardId] = useState(null);
   const [searchUserQuery, setSearchUserQuery] = useState('');
 
+  // Debounced search для производительности
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
   const [boardsStats, setBoardsStats] = useState({});
   const [users, setUsers] = useState({});
 
-  useEffect(() => {
-    if (!user) return;
-    loadBoards();
-    loadUsers();
-  }, [user]);
-
-  const loadBoards = async () => {
-    setLoading(true);
-    // Используем getAllAvailableBoards чтобы видеть публичные доски
-    const result = await boardService.getAllAvailableBoards(user.uid);
-    if (result.success) {
-      const userBoards = result.boards;
-      setBoards(userBoards);
-      
-      const stats = {};
-      for (const board of userBoards) {
-        const tasksResult = await taskService.getTasksByBoard(board.id);
-        if (tasksResult.success) {
-          stats[board.id] = {
-            totalTasks: tasksResult.tasks.length,
-            completedTasks: tasksResult.tasks.filter(t => t.status === 'done').length,
-          };
-        }
+  // React Query — загрузка досок
+  const { data: boardsData, isLoading: loading, refetch: loadBoards } = useQuery({
+    queryKey: queryKeys.boards.all,
+    queryFn: async () => {
+      const result = await boardService.getAllAvailableBoards(user?.uid);
+      if (result.success) {
+        // Загружаем статистику параллельно
+        const stats = {};
+        await Promise.all(result.boards.map(async (board) => {
+          const tasksResult = await taskService.getTasksByBoard(board.id);
+          if (tasksResult.success) {
+            stats[board.id] = {
+              totalTasks: tasksResult.tasks.length,
+              completedTasks: tasksResult.tasks.filter(t => t.status === 'done').length,
+            };
+          }
+        }));
+        setBoardsStats(stats);
+        return result.boards;
       }
-      setBoardsStats(stats);
-      setLoading(false);
-    }
-  };
+      return [];
+    },
+    enabled: !!user?.uid,
+    staleTime: 2 * 60 * 1000, // 2 минуты
+    onSuccess: (data) => {
+      setBoards(data); // Синхронизация с Zustand
+    },
+  });
 
-  const loadUsers = async () => {
-    const result = await userService.getAllUsers();
-    if (result.success) {
-      const usersMap = {};
-      result.users.forEach(u => { usersMap[u.id] = u; });
-      setUsers(usersMap);
-    }
-  };
+  const boards = boardsData || [];
 
-  const handleCreateBoard = async () => {
+  // React Query — загрузка пользователей
+  const { data: usersData } = useQuery({
+    queryKey: queryKeys.users.list(),
+    queryFn: async () => {
+      const result = await userService.getAllUsers();
+      if (result.success) {
+        const usersMap = {};
+        result.users.forEach(u => { usersMap[u.id] = u; });
+        return usersMap;
+      }
+      return {};
+    },
+    staleTime: 10 * 60 * 1000, // 10 минут
+  });
+
+  useEffect(() => {
+    if (usersData) setUsers(usersData);
+  }, [usersData]);
+
+  // Mutation — создание доски
+  const createBoardMutation = useMutation({
+    mutationFn: (data) => boardService.createBoard(data, user.uid),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
+        setCreateDialogOpen(false);
+        setNewBoardData({ title: '', description: '' });
+        navigate(`/board/${result.boardId}`);
+      }
+    },
+  });
+
+  // Mutation — удаление доски
+  const deleteBoardMutation = useMutation({
+    mutationFn: (boardId) => boardService.deleteBoard(boardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
+      toast.success('Доска удалена');
+    },
+  });
+
+  const handleCreateBoard = useCallback(async () => {
     if (!newBoardData.title.trim()) return;
+    createBoardMutation.mutate(newBoardData);
+  }, [newBoardData, createBoardMutation]);
 
-    const result = await boardService.createBoard(newBoardData, user.uid);
-    if (result.success) {
-      setCreateDialogOpen(false);
-      setNewBoardData({ title: '', description: '' });
-      navigate(`/board/${result.boardId}`);
-    }
-  };
-
-  const handleDeleteBoard = async () => {
+  const handleDeleteBoard = useCallback(async () => {
     if (!selectedBoard) return;
     if (!window.confirm(`Удалить доску "${selectedBoard.title}"?`)) return;
-
-    const result = await boardService.deleteBoard(selectedBoard.id);
-    if (result.success) {
-      await loadBoards();
-    }
+    deleteBoardMutation.mutate(selectedBoard.id);
     setMenuAnchor(null);
     setSelectedBoard(null);
-  };
+  }, [selectedBoard, deleteBoardMutation]);
 
-  const handleMenuOpen = (event, board) => {
+  const handleMenuOpen = useCallback((event, board) => {
     event.stopPropagation();
     setMenuAnchor(event.currentTarget);
     setSelectedBoard(board);
-  };
+  }, []);
 
-  const handleMenuClose = () => {
+  const handleMenuClose = useCallback(() => {
     setMenuAnchor(null);
     setSelectedBoard(null);
-  };
+  }, []);
 
-  const handleJoinBoard = async (boardId, event) => {
+  const handleJoinBoard = useCallback(async (boardId, event) => {
     event.stopPropagation();
     const result = await boardService.requestBoardAccess(boardId, user.uid);
     if (result.success) {
@@ -183,7 +216,7 @@ function BoardsPage() {
     } else {
       toast.error(result.error || 'Не удалось присоединиться к доске');
     }
-  };
+  }, [user?.uid, loadBoards, toast]);
 
   const handleEditBoard = () => {
     if (!selectedBoard) return;

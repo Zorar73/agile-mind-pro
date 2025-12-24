@@ -18,6 +18,8 @@ import SketchDrawer from '../Sketch/SketchDrawer';
 import { gradients, statusColors } from '../../theme';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { usePermissions } from '../../hooks/usePermissions';
+import { MODULES } from '../../constants';
 
 const ROLE_CONFIG = {
   owner: { label: 'Владелец', color: '#7E57C2' },
@@ -28,10 +30,11 @@ const ROLE_CONFIG = {
 
 function TeamDrawer({ open, onClose, teamId, drawerId }) {
   const { user: currentUser } = useContext(UserContext);
+  const { hasAccess } = usePermissions();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const chatEndRef = useRef(null);
-  
+
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -61,6 +64,24 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedSketchId, setSelectedSketchId] = useState(null);
   const [error, setError] = useState(null);
+
+  // Динамическая конфигурация табов на основе прав доступа
+  const tabsConfig = React.useMemo(() => {
+    const allTabs = [
+      { id: 'info', label: 'Инфо', icon: <Group fontSize="small" />, alwaysShow: true },
+      { id: 'chat', label: 'Чат', icon: <Chat fontSize="small" />, alwaysShow: true },
+      { id: 'boards', label: 'Доски', icon: <ViewKanban fontSize="small" />, module: MODULES.BOARDS },
+      { id: 'tasks', label: 'Задачи', icon: <Assignment fontSize="small" />, module: MODULES.TASKS },
+      { id: 'sketches', label: 'Наброски', icon: <Lightbulb fontSize="small" />, module: MODULES.SKETCHES },
+      { id: 'settings', label: 'Настройки', icon: <Settings fontSize="small" />, alwaysShow: true },
+    ];
+
+    return allTabs.filter(tab => tab.alwaysShow || (tab.module && hasAccess(tab.module)));
+  }, [hasAccess]);
+
+  // Мапим ID табов на индексы для обратной совместимости с activeTab
+  const getTabIndex = (tabId) => tabsConfig.findIndex(t => t.id === tabId);
+  const getTabId = (index) => tabsConfig[index]?.id;
 
   const fieldSx = {
     '& .MuiOutlinedInput-root': {
@@ -96,13 +117,17 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
   }, [open, teamId]);
 
   useEffect(() => {
-    if (activeTab === 1 && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    const currentTabId = getTabId(activeTab);
+    if (currentTabId === 'chat' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [chatMessages, activeTab]);
 
   useEffect(() => {
-    if (activeTab === 2 && team) loadTeamBoards();
-    else if (activeTab === 3 && team) loadTeamTasks();
-    else if (activeTab === 4 && team) loadTeamSketches();
+    const currentTabId = getTabId(activeTab);
+    if (currentTabId === 'boards' && team) loadTeamBoards();
+    else if (currentTabId === 'tasks' && team) loadTeamTasks();
+    else if (currentTabId === 'sketches' && team) loadTeamSketches();
   }, [activeTab, team]);
 
   const loadTeamData = async () => {
@@ -318,17 +343,14 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: 1, borderColor: 'divider', minHeight: 48, '& .MuiTab-root': { minHeight: 48, py: 1, minWidth: 'auto', px: 2 } }}>
-              <Tab label="Инфо" icon={<Group fontSize="small" />} iconPosition="start" />
-              <Tab label="Чат" icon={<Chat fontSize="small" />} iconPosition="start" />
-              <Tab label="Доски" icon={<ViewKanban fontSize="small" />} iconPosition="start" />
-              <Tab label="Задачи" icon={<Assignment fontSize="small" />} iconPosition="start" />
-              <Tab label="Наброски" icon={<Lightbulb fontSize="small" />} iconPosition="start" />
-              <Tab label="Настройки" icon={<Settings fontSize="small" />} iconPosition="start" />
+              {tabsConfig.map((tab, index) => (
+                <Tab key={tab.id} label={tab.label} icon={tab.icon} iconPosition="start" />
+              ))}
             </Tabs>
 
             <Box sx={{ flex: 1, overflow: 'auto' }}>
-              {/* TAB 0: Info */}
-              {activeTab === 0 && (
+              {/* TAB: Info */}
+              {getTabId(activeTab) === 'info' && (
                 <Box sx={{ p: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Статистика команды</Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, mb: 3 }}>
@@ -379,6 +401,8 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
                           <ListItemText
                             primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Typography variant="body2" fontWeight={600}>{member.firstName} {member.lastName}</Typography>{isSelf && <Chip label="Вы" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}</Box>}
                             secondary={<Box component="span" sx={{ display: 'inline-block' }}><Chip label={roleConfig.label} size="small" sx={{ mt: 0.5, height: 22, bgcolor: `${roleConfig.color}15`, color: roleConfig.color }} /></Box>}
+                            primaryTypographyProps={{ component: 'div' }}
+                            secondaryTypographyProps={{ component: 'span' }}
                           />
                           {canManageMembers && !isSelf && member.role !== 'owner' && member.role !== 'leader' && (
                             <ListItemSecondaryAction>
@@ -394,8 +418,8 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
                 </Box>
               )}
 
-              {/* TAB 1: Chat */}
-              {activeTab === 1 && (
+              {/* TAB: Chat */}
+              {getTabId(activeTab) === 'chat' && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
                     {chatMessages.length === 0 ? (
@@ -446,8 +470,8 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
                 </Box>
               )}
 
-              {/* TAB 2: Boards */}
-              {activeTab === 2 && (
+              {/* TAB: Boards */}
+              {getTabId(activeTab) === 'boards' && (
                 <Box sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle2" fontWeight={600}>Доски команды</Typography>
@@ -473,8 +497,8 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
                 </Box>
               )}
 
-              {/* TAB 3: Tasks */}
-              {activeTab === 3 && (
+              {/* TAB: Tasks */}
+              {getTabId(activeTab) === 'tasks' && (
                 <Box sx={{ p: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Активные задачи команды</Typography>
                   {loadingTasks ? (
@@ -508,8 +532,8 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
                 </Box>
               )}
 
-              {/* TAB 4: Sketches */}
-              {activeTab === 4 && (
+              {/* TAB: Sketches */}
+              {getTabId(activeTab) === 'sketches' && (
                 <Box sx={{ p: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Наброски, расшаренные с командой</Typography>
                   {loadingSketches ? (
@@ -535,8 +559,8 @@ function TeamDrawer({ open, onClose, teamId, drawerId }) {
                 </Box>
               )}
 
-              {/* TAB 5: Settings */}
-              {activeTab === 5 && (
+              {/* TAB: Settings */}
+              {getTabId(activeTab) === 'settings' && (
                 <Box sx={{ p: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Настройки команды</Typography>
                   {canEdit && (

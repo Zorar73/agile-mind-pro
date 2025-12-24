@@ -22,10 +22,14 @@ import {
   MoreVert,
   Delete,
   Edit,
+  Group,
+  Person,
+  Public,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import CommentSection from './CommentSection';
+import PollDisplay from './PollDisplay';
 
 function NewsCard({ news, currentUserId, userProfile, users, onLike, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -145,6 +149,36 @@ function NewsCard({ news, currentUserId, userProfile, users, onLike, onDelete })
       )}
 
       <CardContent sx={{ px: 3, pt: 2 }}>
+        {/* Important badge */}
+        {news.isImportant && (
+          <Chip
+            label={news.requiresConfirmation ? '⚠️ Важно — требует подтверждения' : '⚠️ Важная новость'}
+            size="small"
+            color="error"
+            sx={{ mb: 1.5 }}
+          />
+        )}
+
+        {/* Targeting indicator */}
+        {news.targeting && news.targeting.type !== 'all' && (
+          <Chip
+            icon={
+              news.targeting.type === 'roles' ? <Group fontSize="small" /> :
+              news.targeting.type === 'teams' ? <Group fontSize="small" /> :
+              news.targeting.type === 'users' ? <Person fontSize="small" /> :
+              <Public fontSize="small" />
+            }
+            label={
+              news.targeting.type === 'roles' ? 'Для ролей' :
+              news.targeting.type === 'teams' ? 'Для команд' :
+              news.targeting.type === 'users' ? 'Персонально' : 'Для всех'
+            }
+            size="small"
+            variant="outlined"
+            sx={{ mb: 1.5, ml: news.isImportant ? 1 : 0 }}
+          />
+        )}
+
         <Typography
           variant="h5"
           gutterBottom
@@ -170,6 +204,15 @@ function NewsCard({ news, currentUserId, userProfile, users, onLike, onDelete })
         >
           {news.content}
         </Typography>
+
+        {/* Poll */}
+        {news.poll && (
+          <PollDisplay
+            newsId={news.id}
+            poll={news.poll}
+            currentUserId={currentUserId}
+          />
+        )}
 
         {news.tags && news.tags.length > 0 && (
           <Box sx={{ mt: 2.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -286,6 +329,10 @@ export default React.memo(NewsCard, (prevProps, nextProps) => {
   const nextLikesCount = Object.keys(nextProps.news.likes || {}).length;
   const prevIsLiked = prevProps.news.likes?.[prevProps.currentUserId];
   const nextIsLiked = nextProps.news.likes?.[nextProps.currentUserId];
+  
+  // Проверяем изменения в poll
+  const prevPollVotes = prevProps.news.poll?.totalVotes || 0;
+  const nextPollVotes = nextProps.news.poll?.totalVotes || 0;
 
   return (
     prevProps.news.id === nextProps.news.id &&
@@ -293,6 +340,7 @@ export default React.memo(NewsCard, (prevProps, nextProps) => {
     prevProps.news.content === nextProps.news.content &&
     prevLikesCount === nextLikesCount &&
     prevIsLiked === nextIsLiked &&
+    prevPollVotes === nextPollVotes &&
     prevProps.currentUserId === nextProps.currentUserId
   );
 });

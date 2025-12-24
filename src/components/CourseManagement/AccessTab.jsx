@@ -14,6 +14,10 @@ import {
   Chip,
   Alert,
   Divider,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormLabel,
 } from '@mui/material';
 import {
   Save,
@@ -22,6 +26,9 @@ import {
   People,
   Person,
   Group,
+  WorkspacePremium,
+  Schedule,
+  StarRate,
 } from '@mui/icons-material';
 import learningService from '../../services/learning.service';
 import { useToast } from '../../contexts/ToastContext';
@@ -40,9 +47,16 @@ function AccessTab({ courseId, course }) {
   const [isPublic, setIsPublic] = useState(true);
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [assignedTeams, setAssignedTeams] = useState([]);
+  const [assignedRoles, setAssignedRoles] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableTeams, setAvailableTeams] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
   const [courseAuthors, setCourseAuthors] = useState([]);
+  const [isRequired, setIsRequired] = useState(false);
+  const [requiredForRoles, setRequiredForRoles] = useState([]);
+  const [deadlineType, setDeadlineType] = useState('none');
+  const [deadlineDays, setDeadlineDays] = useState(30);
+  const [deadlineDate, setDeadlineDate] = useState('');
 
   useEffect(() => {
     if (courseId) {
@@ -59,6 +73,22 @@ function AccessTab({ courseId, course }) {
       setIsPublic(accessResult.access.isPublic);
       setAssignedUsers(accessResult.access.assignedUsers || []);
       setAssignedTeams(accessResult.access.assignedTeams || []);
+      setAssignedRoles(accessResult.access.assignedRoles || []);
+      setIsRequired(accessResult.access.isRequired || false);
+      setRequiredForRoles(accessResult.access.requiredForRoles || []);
+
+      // Load deadline settings
+      if (accessResult.access.deadline) {
+        const deadline = accessResult.access.deadline;
+        setDeadlineType(deadline.type || 'none');
+        if (deadline.type === 'days_after_assign') {
+          setDeadlineDays(deadline.value || 30);
+        } else if (deadline.type === 'fixed_date') {
+          // Convert Firestore timestamp to date string
+          const date = deadline.value?.toDate?.() || new Date(deadline.value);
+          setDeadlineDate(date.toISOString().split('T')[0]);
+        }
+      }
     }
 
     // Load course to get authors
@@ -92,6 +122,19 @@ function AccessTab({ courseId, course }) {
       console.error('Error loading teams:', error);
     }
 
+    // Load available roles
+    try {
+      const rolesSnapshot = await getDocs(collection(db, 'roles'));
+      const roles = rolesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        label: doc.data().name || 'Роль без названия',
+        ...doc.data(),
+      }));
+      setAvailableRoles(roles);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
+
     setLoading(false);
   };
 
@@ -102,7 +145,22 @@ function AccessTab({ courseId, course }) {
       isPublic,
       assignedUsers,
       assignedTeams,
+      assignedRoles,
+      isRequired,
+      requiredForRoles,
     };
+
+    // Добавляем дедлайн если он настроен
+    if (deadlineType !== 'none') {
+      accessData.deadline = {
+        type: deadlineType,
+        value: deadlineType === 'days_after_assign'
+          ? parseInt(deadlineDays)
+          : new Date(deadlineDate),
+      };
+    } else {
+      accessData.deadline = null;
+    }
 
     const result = await learningService.updateCourseAccess(courseId, accessData);
 
@@ -335,6 +393,59 @@ function AccessTab({ courseId, course }) {
                 </Typography>
               )}
             </Box>
+
+            <Divider />
+
+            {/* Assigned Roles */}
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                <WorkspacePremium sx={{ color: '#FF9800' }} />
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Назначенные роли
+                </Typography>
+              </Stack>
+
+              {!isPublic && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Все пользователи с выбранными ролями получат доступ к курсу
+                </Alert>
+              )}
+
+              <Autocomplete
+                multiple
+                disabled={isPublic}
+                options={availableRoles}
+                value={availableRoles.filter(r => assignedRoles.includes(r.id))}
+                onChange={(e, newValue) => {
+                  setAssignedRoles(newValue.map(r => r.id));
+                }}
+                getOptionLabel={(option) => option.label}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={isPublic ? 'Курс доступен всем' : 'Выберите роли'}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      key={option.id}
+                      icon={<WorkspacePremium />}
+                      label={option.label}
+                      {...getTagProps({ index })}
+                      disabled={isPublic}
+                      sx={{ bgcolor: '#FF980010' }}
+                    />
+                  ))
+                }
+              />
+
+              {!isPublic && assignedRoles.length > 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Выбрано ролей: {assignedRoles.length}
+                </Typography>
+              )}
+            </Box>
           </Stack>
         </CardContent>
       </Card>
@@ -358,9 +469,164 @@ function AccessTab({ courseId, course }) {
             <Typography variant="body2">
               • {assignedTeams.length} {assignedTeams.length === 1 ? 'команда' : 'команд'}
             </Typography>
+            <Typography variant="body2">
+              • {assignedRoles.length} {assignedRoles.length === 1 ? 'роль' : 'ролей'}
+            </Typography>
           </CardContent>
         </Card>
       )}
+
+      {/* Required Courses Section */}
+      <Card sx={{ borderRadius: 3, mb: 3, bgcolor: '#FF980005', border: '2px solid #FF9800' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack spacing={3}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <StarRate sx={{ color: '#FF9800' }} />
+              <Typography variant="h6" fontWeight={700}>
+                Обязательное обучение
+              </Typography>
+            </Stack>
+
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isRequired}
+                    onChange={(e) => setIsRequired(e.target.checked)}
+                    color="warning"
+                  />
+                }
+                label={
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Сделать курс обязательным
+                  </Typography>
+                }
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 5 }}>
+                {isRequired
+                  ? 'Пользователи с выбранными ролями будут автоматически записаны на курс'
+                  : 'Курс доступен для добровольного прохождения'}
+              </Typography>
+            </Box>
+
+            {isRequired && (
+              <>
+                <Divider />
+
+                {/* Required for Roles */}
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <WorkspacePremium sx={{ color: '#FF9800' }} />
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Обязателен для ролей
+                    </Typography>
+                  </Stack>
+
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    При назначении роли или создании пользователя с выбранной ролью, курс будет автоматически назначен
+                  </Alert>
+
+                  <Autocomplete
+                    multiple
+                    options={availableRoles}
+                    value={availableRoles.filter(r => requiredForRoles.includes(r.id))}
+                    onChange={(e, newValue) => {
+                      setRequiredForRoles(newValue.map(r => r.id));
+                    }}
+                    getOptionLabel={(option) => option.label}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        placeholder="Выберите роли, для которых курс обязателен"
+                      />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          key={option.id}
+                          icon={<WorkspacePremium />}
+                          label={option.label}
+                          {...getTagProps({ index })}
+                          color="warning"
+                        />
+                      ))
+                    }
+                  />
+                </Box>
+
+                <Divider />
+
+                {/* Deadline Settings */}
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <Schedule sx={{ color: '#FF9800' }} />
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Дедлайн прохождения
+                    </Typography>
+                  </Stack>
+
+                  <FormControl component="fieldset">
+                    <RadioGroup
+                      value={deadlineType}
+                      onChange={(e) => setDeadlineType(e.target.value)}
+                    >
+                      <FormControlLabel
+                        value="none"
+                        control={<Radio color="warning" />}
+                        label="Без дедлайна"
+                      />
+                      <FormControlLabel
+                        value="days_after_assign"
+                        control={<Radio color="warning" />}
+                        label={
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography>Через</Typography>
+                            <TextField
+                              type="number"
+                              value={deadlineDays}
+                              onChange={(e) => setDeadlineDays(e.target.value)}
+                              disabled={deadlineType !== 'days_after_assign'}
+                              size="small"
+                              sx={{ width: 80 }}
+                              inputProps={{ min: 1, max: 365 }}
+                            />
+                            <Typography>дней после назначения</Typography>
+                          </Stack>
+                        }
+                      />
+                      <FormControlLabel
+                        value="fixed_date"
+                        control={<Radio color="warning" />}
+                        label={
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography>Фиксированная дата:</Typography>
+                            <TextField
+                              type="date"
+                              value={deadlineDate}
+                              onChange={(e) => setDeadlineDate(e.target.value)}
+                              disabled={deadlineType !== 'fixed_date'}
+                              size="small"
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Stack>
+                        }
+                      />
+                    </RadioGroup>
+                  </FormControl>
+
+                  {deadlineType !== 'none' && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      {deadlineType === 'days_after_assign'
+                        ? `Пользователи должны пройти курс в течение ${deadlineDays} дней после назначения`
+                        : `Все пользователи должны пройти курс до ${new Date(deadlineDate).toLocaleDateString('ru-RU')}`}
+                    </Alert>
+                  )}
+                </Box>
+              </>
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
 
       {/* Save Button */}
       <Box sx={{ textAlign: 'center' }}>

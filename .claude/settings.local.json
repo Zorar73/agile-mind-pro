@@ -22,7 +22,13 @@
       "Bash(scp:*)",
       "Bash(tar:*)",
       "Bash(powershell -Command:*)",
-      "Bash(git archive:*)"
+      "Bash(git archive:*)",
+      "Bash(if [ ! -d \"hooks\" ])",
+      "Bash(then mkdir hooks)",
+      "Bash(fi)",
+      "Bash(if [ ! -d \"constants\" ])",
+      "Bash(then mkdir constants)",
+      "Bash(firebase firestore:rules:*)"
     ]
   }
 }

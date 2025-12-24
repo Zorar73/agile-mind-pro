@@ -435,6 +435,8 @@ function TaskDrawer({ task, columns: propColumns, onClose, onUpdate }) {
                       <ListItemText
                         primary={<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}><Typography variant="body2" fontWeight={600}>{commentUser?.firstName || 'Пользователь'}</Typography><Typography variant="caption" color="text.secondary">{formatDateDisplay(comment.createdAt)}</Typography></Box>}
                         secondary={<><Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{comment.text}</Typography>{comment.attachments?.length > 0 && <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>{comment.attachments.map((att, i) => att.type === 'ai_image' || att.mimeType?.startsWith('image/') ? <Box key={i} component="img" src={att.url} sx={{ maxWidth: 150, maxHeight: 100, borderRadius: 1 }} /> : <Chip key={i} label={att.name} size="small" icon={<AttachFile />} />)}</Box>}</>}
+                        primaryTypographyProps={{ component: 'div' }}
+                        secondaryTypographyProps={{ component: 'div' }}
                       />
                     </ListItem>
                   );

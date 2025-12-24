@@ -6,7 +6,11 @@ import { ToastProvider } from './contexts/ToastContext';
 import { DrawerStackProvider } from './contexts/DrawerStackContext';
 import NotificationProvider from './contexts/NotificationProvider';
 import EntityDrawerManager from './components/Common/EntityDrawerManager';
+import ImportantNewsModal from './components/News/ImportantNewsModal';
 import authService from './services/auth.service';
+import learningService from './services/learning.service';
+import newsService from './services/news.service';
+import { useUserStore } from './stores';
 
 // Lazy-loaded Pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -42,6 +46,12 @@ const ExamResultsReviewPage = lazy(() => import('./pages/ExamResultsReviewPage')
 const CourseStatsPage = lazy(() => import('./pages/CourseStatsPage'));
 const CourseAccessPage = lazy(() => import('./pages/CourseAccessPage'));
 const CourseManagementPage = lazy(() => import('./pages/CourseManagementPage'));
+const RolesPage = lazy(() => import('./pages/admin/RolesPage'));
+const RolesMigrationPage = lazy(() => import('./pages/admin/RolesMigrationPage'));
+const AssignmentReviewsPage = lazy(() => import('./pages/AssignmentReviewsPage'));
+const LearningAnalyticsPage = lazy(() => import('./pages/LearningAnalyticsPage'));
+const FeedbackAdminPage = lazy(() => import('./pages/admin/FeedbackAdminPage'));
+const MyFeedbackPage = lazy(() => import('./pages/MyFeedbackPage'));
 
 const UserContext = createContext();
 
@@ -95,15 +105,76 @@ function ProtectedRoute({ children }) {
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showImportantNews, setShowImportantNews] = useState(false);
+  
+  // Zustand store — синхронизация
+  const setUserStore = useUserStore((state) => state.setUser);
+  const clearUserStore = useUserStore((state) => state.clearUser);
 
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      
+      // Синхронизация с Zustand store
+      if (currentUser) {
+        setUserStore(currentUser);
+      } else {
+        clearUserStore();
+      }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [setUserStore, clearUserStore]);
+
+  // Проверка важных непрочитанных новостей при входе пользователя
+  useEffect(() => {
+    if (user && user.uid && user.role !== 'pending') {
+      checkImportantNews();
+    }
+  }, [user?.uid, user?.role]);
+
+  const checkImportantNews = async () => {
+    try {
+      const result = await newsService.getUnreadImportantNews(user.uid);
+      if (result.success && result.news.length > 0) {
+        setShowImportantNews(true);
+      }
+    } catch (error) {
+      console.error('Ошибка при проверке важных новостей:', error);
+    }
+  };
+
+  // Проверка дедлайнов курсов при входе пользователя
+  useEffect(() => {
+    if (user && user.uid && user.role !== 'pending') {
+      // Проверяем, не выполняли ли мы уже проверку в последние 5 минут
+      const lastCheckKey = `deadline_check_${user.uid}`;
+      const lastCheck = sessionStorage.getItem(lastCheckKey);
+      const now = Date.now();
+
+      if (lastCheck && (now - parseInt(lastCheck)) < 5 * 60 * 1000) {
+        console.log('⏭️ Проверка дедлайнов пропущена (недавно выполнена)');
+        return;
+      }
+
+      console.log('🔔 Проверка дедлайнов курсов для пользователя:', user.uid);
+      sessionStorage.setItem(lastCheckKey, now.toString());
+
+      // Проверяем дедлайны асинхронно, не блокируя UI
+      learningService.checkAndNotifyDeadlines(user.uid)
+        .then(result => {
+          if (result.success) {
+            console.log('✅ Проверка дедлайнов завершена. Отправлено уведомлений:', result.notificationsSent);
+          } else {
+            console.error('❌ Ошибка при проверке дедлайнов:', result.error);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Критическая ошибка при проверке дедлайнов:', error);
+        });
+    }
+  }, [user?.uid, user?.role]);
 
   return (
     <ThemeProvider>
@@ -149,6 +220,8 @@ function App() {
               <Route path="/news" element={<ProtectedRoute><NewsPage /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+              <Route path="/admin/migrate" element={<ProtectedRoute><RolesMigrationPage /></ProtectedRoute>} />
+              <Route path="/admin/roles" element={<ProtectedRoute><RolesPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/learning" element={<ProtectedRoute><LearningPortalPage /></ProtectedRoute>} />
@@ -164,10 +237,23 @@ function App() {
               <Route path="/learning/exam/:examId" element={<ProtectedRoute><ExamTakingPage /></ProtectedRoute>} />
               <Route path="/learning/exam/:examId/result" element={<ProtectedRoute><ExamResultPage /></ProtectedRoute>} />
               <Route path="/learning/admin/exam/:examId/results" element={<ProtectedRoute><ExamResultsReviewPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/reviews" element={<ProtectedRoute><AssignmentReviewsPage /></ProtectedRoute>} />
+              <Route path="/learning/admin/analytics" element={<ProtectedRoute><LearningAnalyticsPage /></ProtectedRoute>} />
+              <Route path="/admin/feedback" element={<ProtectedRoute><FeedbackAdminPage /></ProtectedRoute>} />
+              <Route path="/my-feedback" element={<ProtectedRoute><MyFeedbackPage /></ProtectedRoute>} />
               <Route path="/cloudinary-test" element={<ProtectedRoute><CloudinaryTestPage /></ProtectedRoute>} />
                   </Routes>
                 </Suspense>
                 <EntityDrawerManager />
+
+                {/* Important News Modal */}
+                {user && (
+                  <ImportantNewsModal
+                    userId={user.uid}
+                    open={showImportantNews}
+                    onClose={() => setShowImportantNews(false)}
+                  />
+                )}
               </NotificationProvider>
             </Router>
         </UserContext.Provider>

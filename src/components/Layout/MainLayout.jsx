@@ -28,6 +28,7 @@ import {
   Notifications,
   People,
   School,
+  Feedback,
 } from '@mui/icons-material';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -36,6 +37,7 @@ import boardService from '../../services/board.service';
 import NotificationCenter from '../Notifications/NotificationCenter';
 import ThemeToggle from '../Common/ThemeToggle';
 import DebugConsole from '../DebugConsole';
+import FeedbackDialog from '../Feedback/FeedbackDialog';
 
 const DRAWER_WIDTH = 260;
 
@@ -77,6 +79,7 @@ function MainLayout({ children, title, showAppBar = true }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [boards, setBoards] = useState([]);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   
   const [dynamicNames, setDynamicNames] = useState({});
   const [loadingNames, setLoadingNames] = useState(false);
@@ -455,6 +458,27 @@ function MainLayout({ children, title, showAppBar = true }) {
         </Box>
       </Box>
 
+      {/* Feedback FAB */}
+      <Fab
+        size="medium"
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 2000,
+          boxShadow: 3,
+          background: `linear-gradient(135deg, ${bauhaus.blue} 0%, ${bauhaus.teal} 100%)`,
+          color: 'white',
+          '&:hover': { 
+            background: `linear-gradient(135deg, ${bauhaus.teal} 0%, ${bauhaus.blue} 100%)`,
+          },
+        }}
+        onClick={() => setFeedbackOpen(true)}
+        title="Оставить отзыв"
+      >
+        <Feedback />
+      </Fab>
+
       {/* Debug Console FAB */}
       <Fab
         size="small"
@@ -474,6 +498,7 @@ function MainLayout({ children, title, showAppBar = true }) {
         <BugReport fontSize="small" />
       </Fab>
 
+      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <DebugConsole open={debugOpen} onClose={() => setDebugOpen(false)} />
     </Box>
   );

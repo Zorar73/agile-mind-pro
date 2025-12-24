@@ -24,6 +24,7 @@ import { UserContext } from '../App';
 import MainLayout from '../components/Layout/MainLayout';
 import learningService from '../services/learning.service';
 import { useToast } from '../contexts/ToastContext';
+import PracticeAssignment from '../components/Learning/PracticeAssignment';
 
 const bauhaus = {
   blue: '#1E88E5',
@@ -304,6 +305,16 @@ function LessonPage() {
               </Stack>
             </CardContent>
           </Card>
+        )}
+
+        {/* Practice Assignment */}
+        {lesson.type === 'practice' && (
+          <Box sx={{ mb: 4 }}>
+            <PracticeAssignment 
+              lesson={lesson} 
+              onComplete={handleMarkComplete}
+            />
+          </Box>
         )}
 
         {/* Actions */}

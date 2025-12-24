@@ -47,6 +47,10 @@ class NotificationService {
     SKETCH_MENTION: 'sketch_mention',
     NEWS_COMMENT: 'news_comment',
     NEWS_MENTION: 'news_mention',
+    COURSE_ASSIGNED: 'course_assigned',
+    COURSE_DEADLINE_SOON: 'course_deadline_soon',
+    COURSE_DEADLINE_URGENT: 'course_deadline_urgent',
+    COURSE_OVERDUE: 'course_overdue',
   };
 
   // Создать уведомление
@@ -670,6 +674,183 @@ class NotificationService {
       actorId: mentionedBy,
       link: `/news`
     });
+  }
+
+  // =====================
+  // LEARNING NOTIFICATIONS
+  // =====================
+
+  // Проверка существования уведомления за сегодня
+  async hasRecentNotification(userId, type, courseId) {
+    try {
+      // Получаем начало текущего дня
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        where('type', '==', type),
+        where('courseId', '==', courseId),
+        limit(1)
+      );
+
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return false;
+      }
+
+      // Проверяем, было ли уведомление создано сегодня
+      const notification = snapshot.docs[0].data();
+      const createdAt = notification.createdAt?.toDate?.() || new Date(notification.createdAt);
+      
+      return createdAt >= today;
+    } catch (error) {
+      console.error('Error checking recent notification:', error);
+      return false; // В случае ошибки разрешаем создание
+    }
+  }
+
+  async notifyCourseAssigned(courseId, courseTitle, userId, isRequired, deadline) {
+    // Проверяем, не было ли уже уведомления
+    const hasRecent = await this.hasRecentNotification(userId, this.TYPES.COURSE_ASSIGNED, courseId);
+    if (hasRecent) {
+      console.log('⏭️ Уведомление о назначении курса уже отправлено сегодня');
+      return { success: true, skipped: true };
+    }
+
+    let message = `Вам назначен курс: ${courseTitle}`;
+
+    if (isRequired && deadline) {
+      const deadlineDate = deadline.value?.toDate?.() || new Date(deadline.value);
+      const formattedDate = deadlineDate.toLocaleDateString('ru-RU');
+      message += `. Обязательный курс, дедлайн: ${formattedDate}`;
+    } else if (isRequired) {
+      message += `. Обязательный курс`;
+    }
+
+    return await this.create({
+      type: this.TYPES.COURSE_ASSIGNED,
+      userId,
+      title: isRequired ? 'Назначен обязательный курс' : 'Назначен новый курс',
+      message,
+      courseId,
+      link: `/learning/course/${courseId}`
+    });
+  }
+
+  async notifyCourseDeadlineSoon(courseId, courseTitle, userId, daysLeft) {
+    // Проверяем, не было ли уже уведомления сегодня
+    const hasRecent = await this.hasRecentNotification(userId, this.TYPES.COURSE_DEADLINE_SOON, courseId);
+    if (hasRecent) {
+      console.log('⏭️ Уведомление о приближающемся дедлайне уже отправлено сегодня');
+      return { success: true, skipped: true };
+    }
+
+    return await this.create({
+      type: this.TYPES.COURSE_DEADLINE_SOON,
+      userId,
+      title: 'Приближается дедлайн курса',
+      message: `До завершения курса "${courseTitle}" осталось ${daysLeft} дней`,
+      courseId,
+      link: `/learning/course/${courseId}`
+    });
+  }
+
+  async notifyCourseDeadlineUrgent(courseId, courseTitle, userId, daysLeft) {
+    // Проверяем, не было ли уже уведомления сегодня
+    const hasRecent = await this.hasRecentNotification(userId, this.TYPES.COURSE_DEADLINE_URGENT, courseId);
+    if (hasRecent) {
+      console.log('⏭️ Срочное уведомление о дедлайне уже отправлено сегодня');
+      return { success: true, skipped: true };
+    }
+
+    const message = daysLeft === 0
+      ? `Дедлайн курса "${courseTitle}" истекает сегодня!`
+      : `До завершения курса "${courseTitle}" остался ${daysLeft} день`;
+
+    return await this.create({
+      type: this.TYPES.COURSE_DEADLINE_URGENT,
+      userId,
+      title: '⚠️ Срочно: дедлайн курса',
+      message,
+      courseId,
+      link: `/learning/course/${courseId}`
+    });
+  }
+
+  async notifyCourseOverdue(courseId, courseTitle, userId, daysOverdue) {
+    // Проверяем, не было ли уже уведомления сегодня
+    const hasRecent = await this.hasRecentNotification(userId, this.TYPES.COURSE_OVERDUE, courseId);
+    if (hasRecent) {
+      console.log('⏭️ Уведомление о просроченном курсе уже отправлено сегодня');
+      return { success: true, skipped: true };
+    }
+
+    return await this.create({
+      type: this.TYPES.COURSE_OVERDUE,
+      userId,
+      title: '🔴 Курс просрочен',
+      message: `Курс "${courseTitle}" просрочен на ${daysOverdue} дней. Пожалуйста, завершите его как можно скорее.`,
+      courseId,
+      link: `/learning/course/${courseId}`
+    });
+  }
+
+  // Массовая отправка уведомлений о дедлайнах
+  async notifyCourseDeadlinesBulk(notifications) {
+    const promises = notifications.map(notif => {
+      switch (notif.status) {
+        case 'soon':
+          return this.notifyCourseDeadlineSoon(notif.courseId, notif.courseTitle, notif.userId, notif.daysLeft);
+        case 'urgent':
+          return this.notifyCourseDeadlineUrgent(notif.courseId, notif.courseTitle, notif.userId, notif.daysLeft);
+        case 'overdue':
+          return this.notifyCourseOverdue(notif.courseId, notif.courseTitle, notif.userId, notif.daysOverdue);
+        default:
+          return null;
+      }
+    }).filter(Boolean);
+
+    return await Promise.all(promises);
+  }
+
+  // =====================
+  // FEEDBACK NOTIFICATIONS
+  // =====================
+
+  // Уведомить админов о новом фидбеке
+  async notifyAdminsNewFeedback(feedbackId, type, title) {
+    try {
+      // Получаем всех админов
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('role', 'in', ['admin', 'superadmin']));
+      const snapshot = await getDocs(q);
+
+      const typeLabels = {
+        bug: 'Баг',
+        feature: 'Идея',
+        question: 'Вопрос',
+      };
+
+      const promises = snapshot.docs.map(doc => {
+        return this.create({
+          type: 'FEEDBACK_NEW',
+          userId: doc.id,
+          title: `Новый отзыв: ${typeLabels[type] || type}`,
+          message: title,
+          feedbackId,
+          link: '/admin/feedback',
+        });
+      });
+
+      await Promise.all(promises);
+      return { success: true };
+    } catch (error) {
+      console.error('Error notifying admins about feedback:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
 
